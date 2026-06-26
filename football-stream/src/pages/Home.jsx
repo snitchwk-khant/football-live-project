@@ -9,19 +9,26 @@ export default function Home() {
 
   const [match, setMatch] = useState({
     title: "Loading...",
+    home_team: "",
+    away_team: "",
+    league: "",
     stream_url: "",
     status: "OFFLINE",
+    match_time: null,
+    is_live: false,
   });
 
-  const fetchMatch = useCallback(async () => {
+  const fetchLiveMatch = useCallback(async () => {
     const { data, error } = await supabase
       .from("matches")
       .select("*")
-      .eq("id", 1)
-      .single();
+      .eq("is_live", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     if (error) {
-      console.log("Load match error:", error);
+      console.log("Load live match error:", error);
       return null;
     }
 
@@ -29,55 +36,64 @@ export default function Home() {
   }, []);
 
   function applyMatch(data) {
-    if (!data) return;
+    if (!data) {
+      setMatch({
+        title: "No Live Match",
+        home_team: "",
+        away_team: "",
+        league: "",
+        stream_url: "",
+        status: "OFFLINE",
+        match_time: null,
+        is_live: false,
+      });
+      return;
+    }
 
     setMatch(data);
-
-    if (playerRef.current && data.stream_url) {
-      const currentSrc = playerRef.current.currentSrc();
-
-      if (currentSrc !== data.stream_url) {
-        playerRef.current.src({
-          src: data.stream_url,
-          type: "application/x-mpegURL",
-        });
-        playerRef.current.load();
-        playerRef.current.play().catch(() => {});
-      }
-    }
   }
+
+  const refreshLiveMatch = useCallback(async () => {
+    const data = await fetchLiveMatch();
+    console.log("Live match refetched");
+    applyMatch(data);
+  }, [fetchLiveMatch]);
 
   useEffect(() => {
     let active = true;
 
-    fetchMatch().then((data) => {
-      if (!active) return;
-      applyMatch(data);
+    Promise.resolve().then(() => {
+      if (active) refreshLiveMatch();
     });
 
     const channel = supabase
-      .channel("matches-realtime")
+      .channel("public-matches-live-homepage")
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "matches",
-          filter: "id=eq.1",
         },
-        (payload) => {
-          if (payload.new) {
-            applyMatch(payload.new);
-          }
+        () => {
+          console.log("Realtime event received");
+          refreshLiveMatch().then(() => {
+            if (!active) return;
+          });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("Realtime connected");
+          refreshLiveMatch();
+        }
+      });
 
     return () => {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [fetchMatch]);
+  }, [refreshLiveMatch]);
 
   useEffect(() => {
     if (videoRef.current && !playerRef.current && match.stream_url) {
@@ -115,13 +131,44 @@ export default function Home() {
       });
     }
 
+  }, [match.stream_url]);
+
+  useEffect(() => {
     return () => {
       if (playerRef.current) {
         playerRef.current.dispose();
         playerRef.current = null;
       }
     };
+  }, []);
+
+  useEffect(() => {
+    if (!playerRef.current) return;
+
+    if (!match.stream_url) {
+      playerRef.current.pause();
+      playerRef.current.src([]);
+      return;
+    }
+
+    const currentSrc = playerRef.current.currentSrc();
+
+    if (currentSrc !== match.stream_url) {
+      playerRef.current.src({
+        src: match.stream_url,
+        type: "application/x-mpegURL",
+      });
+      playerRef.current.load();
+      playerRef.current.play().catch(() => {});
+    }
   }, [match.stream_url]);
+
+  const matchTime = match.match_time
+    ? new Intl.DateTimeFormat(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(match.match_time))
+    : "Not scheduled";
 
   const styles = {
     container: {
@@ -146,10 +193,10 @@ export default function Home() {
     },
     badge: {
       backgroundColor:
-        match.status === "LIVE"
+        match.is_live
           ? "rgba(16, 185, 129, 0.1)"
           : "rgba(239, 68, 68, 0.1)",
-      color: match.status === "LIVE" ? "#34d399" : "#f87171",
+      color: match.is_live ? "#34d399" : "#f87171",
       padding: "6px 12px",
       borderRadius: "20px",
       fontSize: "12px",
@@ -204,7 +251,7 @@ export default function Home() {
       <header style={styles.header}>
         <h1 style={styles.logo}>LIVE FOOTBALL</h1>
         <div style={styles.badge}>
-          ● {match.status === "LIVE" ? "SERVER ONLINE" : "OFFLINE"}
+          ● {match.is_live ? "LIVE NOW" : "NO LIVE MATCH"}
         </div>
       </header>
 
@@ -225,6 +272,18 @@ export default function Home() {
             <h3>Live Match Info</h3>
             <p>
               လက်ရှိပြသနေသည့်ပွဲစဉ်- <b>{match.title}</b>
+            </p>
+            <p>
+              Home Team: <b>{match.home_team || "-"}</b>
+            </p>
+            <p>
+              Away Team: <b>{match.away_team || "-"}</b>
+            </p>
+            <p>
+              League: <b>{match.league || "-"}</b>
+            </p>
+            <p>
+              Match Time: <b>{matchTime}</b>
             </p>
           </div>
 
