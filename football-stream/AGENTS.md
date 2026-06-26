@@ -1,0 +1,24 @@
+# Codex Rules
+
+- Do not auto-apply changes.
+- Show a plan first.
+- Show the diff before applying.
+- Wait for approval.
+- Never modify files outside the requested scope.
+- Preserve existing architecture.
+- Do not introduce regressions.
+- If a file is already working, do not refactor it.
+- Keep changes as small as possible.
+- Do not modify Home.jsx unless explicitly requested.
+- Do not modify App.jsx unless explicitly requested.
+- Do not modify supabase.js unless explicitly requested.
+- Always explain the implementation plan first.
+- Never delete existing working code unless explicitly requested.
+- Prefer reusable components.
+- Keep React components small and maintainable.
+- Prefer composition over duplication.
+- Always use Supabase best practices.
+- Never expose secrets or API keys.
+- If unsure, ask before changing architecture.
+- Run lint before proposing changes.
+- Keep production quality.
