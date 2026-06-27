@@ -7,6 +7,7 @@ import Matches from "./admin/Matches";
 import Streams from "./admin/Streams.jsx";
 import Banners from "./admin/Banners.jsx";
 import Settings from "./admin/Settings.jsx";
+import Media from "./admin/Media/index.jsx";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
       <Route path="/dashboard/matches" element={<Matches />} />
       <Route path="/dashboard/streams" element={<Streams />} />
       <Route path="/dashboard/banners" element={<Banners />} />
+      <Route path="/dashboard/media" element={<Media />} />
       <Route path="/dashboard/settings" element={<Settings />} />
     </Routes>
   );
