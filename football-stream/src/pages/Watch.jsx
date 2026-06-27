@@ -5,6 +5,7 @@ import "video.js/dist/video-js.css";
 import { supabase } from "../services/supabase";
 import { readSettings } from "../utils/settings";
 import { formatMatchTime, getMatchPoster, getMatchTitle, hasPlayableStreamUrl, normalizeMatchStatus } from "../utils/matches";
+import { sanitizeImageUrl } from "../utils/security";
 
 export default function WatchPage() {
   const { matchId } = useParams();
@@ -241,7 +242,7 @@ export default function WatchPage() {
 
       <main style={styles.main}>
         <section style={styles.playerCard}>
-          {poster ? <img src={poster} alt={match ? getMatchTitle(match) : "Match poster"} style={styles.posterImage} /> : null}
+          {poster ? <img src={sanitizeImageUrl(poster)} alt={match ? getMatchTitle(match) : "Match poster"} style={styles.posterImage} /> : null}
           <div style={styles.playerBox}>
             {loading ? (
               <div>Loading watch page…</div>

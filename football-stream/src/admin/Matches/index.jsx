@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Sidebar from "../Sidebar";
 import { supabase } from "../../services/supabase";
+import { sanitizePlainText, sanitizeStreamUrl, sanitizeImageUrl } from "../../utils/security";
 import MatchForm from "./MatchForm";
 import MatchList from "./MatchList";
 
@@ -64,15 +65,15 @@ export default function Matches() {
     setError("");
 
     const payload = {
-      title: `${formValues.home_team.trim()} vs ${formValues.away_team.trim()}`,
-      stream_url: formValues.stream_url.trim(),
-      status: formValues.is_live ? "LIVE" : formValues.status,
-      home_team: formValues.home_team.trim(),
-      away_team: formValues.away_team.trim(),
-      league: formValues.league.trim() || null,
-      poster: formValues.poster.trim() || null,
+      title: sanitizePlainText(`${formValues.home_team.trim()} vs ${formValues.away_team.trim()}`, { maxLength: 160 }),
+      stream_url: sanitizeStreamUrl(formValues.stream_url),
+      status: formValues.is_live ? "LIVE" : sanitizePlainText(formValues.status, { maxLength: 40 }),
+      home_team: sanitizePlainText(formValues.home_team, { maxLength: 80 }),
+      away_team: sanitizePlainText(formValues.away_team, { maxLength: 80 }),
+      league: sanitizePlainText(formValues.league, { maxLength: 80 }) || null,
+      poster: sanitizeImageUrl(formValues.poster) || null,
       match_time: formValues.match_time || null,
-      is_live: formValues.is_live,
+      is_live: Boolean(formValues.is_live),
     };
 
     if (payload.is_live) {

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { readSettings } from "../utils/settings";
 import { formatMatchTime, getMatchPoster, getMatchTitle, normalizeMatchStatus, sortMatchesForPublic } from "../utils/matches";
+import { sanitizeImageUrl } from "../utils/security";
 
 const STATUS_LABELS = {
   live: "Live",
@@ -296,7 +297,7 @@ export default function MatchesPage() {
                     handleOpenMatch(match);
                   }
                 }} tabIndex={0} role="button">
-                  {poster ? <img src={poster} alt={matchTitle} style={styles.image} /> : null}
+                  {poster ? <img src={sanitizeImageUrl(poster)} alt={matchTitle} style={styles.image} /> : null}
                   <div style={styles.body}>
                     <span style={{ ...styles.tag, backgroundColor: status === "live" ? "rgba(16,185,129,0.16)" : status === "ended" ? "rgba(248,113,113,0.16)" : "rgba(56,189,248,0.16)", color: status === "live" ? "#34d399" : status === "ended" ? "#f87171" : "#38bdf8" }}>
                       {STATUS_LABELS[status]}

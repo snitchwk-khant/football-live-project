@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { sanitizeImageUrl, sanitizeStreamUrl } from "../../utils/security";
 
 const EMPTY_FORM = {
   home_team: "",
@@ -212,16 +213,14 @@ function validateMatch(values) {
     return "Please fill all required fields.";
   }
 
-  try {
-    new URL(values.stream_url);
-  } catch {
+  const sanitizedStreamUrl = sanitizeStreamUrl(values.stream_url);
+  if (!sanitizedStreamUrl) {
     return "Please enter a valid Stream URL.";
   }
 
   if (values.poster.trim()) {
-    try {
-      new URL(values.poster);
-    } catch {
+    const sanitizedPosterUrl = sanitizeImageUrl(values.poster);
+    if (!sanitizedPosterUrl) {
       return "Please enter a valid Poster URL.";
     }
   }

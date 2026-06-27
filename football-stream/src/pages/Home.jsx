@@ -5,6 +5,7 @@ import "video.js/dist/video-js.css";
 import { supabase } from "../services/supabase";
 import { readSettings } from "../utils/settings";
 import { formatMatchTime, getMatchPoster, getMatchTitle, hasPlayableStreamUrl, normalizeMatchStatus } from "../utils/matches";
+import { sanitizeImageUrl } from "../utils/security";
 
 export default function Home() {
   const videoRef = useRef(null);
@@ -818,7 +819,7 @@ export default function Home() {
 
           {topBanner ? (
             <div style={styles.bannerCard}>
-              {topBanner.image_url ? <img src={topBanner.image_url} alt={topBanner.title} style={styles.bannerImage} /> : null}
+              {topBanner.image_url ? <img src={sanitizeImageUrl(topBanner.image_url)} alt={topBanner.title} style={styles.bannerImage} /> : null}
               <div style={styles.bannerBody}>
                 <p style={styles.bannerLabel}>Top Banner</p>
                 <h3 style={styles.bannerTitle}>{topBanner.title}</h3>
@@ -844,7 +845,7 @@ export default function Home() {
 
           {bottomBanner ? (
             <div style={styles.bannerCard}>
-              {bottomBanner.image_url ? <img src={bottomBanner.image_url} alt={bottomBanner.title} style={styles.bannerImage} /> : null}
+              {bottomBanner.image_url ? <img src={sanitizeImageUrl(bottomBanner.image_url)} alt={bottomBanner.title} style={styles.bannerImage} /> : null}
               <div style={styles.bannerBody}>
                 <p style={styles.bannerLabel}>Bottom Banner</p>
                 <h3 style={styles.bannerTitle}>{bottomBanner.title}</h3>
@@ -938,7 +939,7 @@ export default function Home() {
                         window.location.assign(`/watch/${item.id}`);
                       }
                     }} tabIndex={0} role="button">
-                      {poster ? <img src={poster} alt={getMatchTitle(item)} style={styles.publicMatchPoster} /> : null}
+                      {poster ? <img src={sanitizeImageUrl(poster)} alt={getMatchTitle(item)} style={styles.publicMatchPoster} /> : null}
                       <p style={styles.matchTitle}>{getMatchTitle(item)}</p>
                       <p style={styles.matchMeta}>{item.home_team || "Home team"} vs {item.away_team || "Away team"}</p>
                       <p style={styles.matchMeta}>{item.league || "League not set"}</p>
@@ -986,7 +987,7 @@ export default function Home() {
 
           {sideBanner ? (
             <div style={styles.bannerCard}>
-              {sideBanner.image_url ? <img src={sideBanner.image_url} alt={sideBanner.title} style={styles.bannerImage} /> : null}
+              {sideBanner.image_url ? <img src={sanitizeImageUrl(sideBanner.image_url)} alt={sideBanner.title} style={styles.bannerImage} /> : null}
               <div style={styles.bannerBody}>
                 <p style={styles.bannerLabel}>Side Banner</p>
                 <h3 style={styles.bannerTitle}>{sideBanner.title}</h3>

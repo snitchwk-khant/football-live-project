@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Sidebar from "./Sidebar";
 import { supabase } from "../services/supabase";
+import { sanitizeImageUrl, sanitizePlainText, sanitizeUrl } from "../utils/security";
 
 const STORAGE_BUCKET = "media";
 const POSITIONS = ["top", "bottom", "side", "popup"];
@@ -102,12 +103,12 @@ export default function Banners() {
 
   function createPayload(values) {
     return {
-      title: values.title.trim(),
-      description: values.description.trim() || null,
-      image_url: values.image_url.trim(),
-      link_url: values.link_url.trim() || null,
+      title: sanitizePlainText(values.title, { maxLength: 120 }),
+      description: sanitizePlainText(values.description, { maxLength: 260 }) || null,
+      image_url: sanitizeImageUrl(values.image_url),
+      link_url: sanitizeUrl(values.link_url) || null,
       position: values.position,
-      is_active: values.is_active,
+      is_active: Boolean(values.is_active),
     };
   }
 
@@ -360,7 +361,7 @@ export default function Banners() {
             <div style={styles.cards}>
               {banners.map((banner) => (
                 <article key={banner.id} style={styles.card}>
-                  {banner.image_url ? <img src={banner.image_url} alt={banner.title} style={styles.cardImage} /> : null}
+                  {banner.image_url ? <img src={sanitizeImageUrl(banner.image_url)} alt={banner.title} style={styles.cardImage} /> : null}
                   <div style={styles.cardBody}>
                     <div style={styles.cardTop}>
                       <div>

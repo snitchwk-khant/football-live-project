@@ -19,6 +19,10 @@ function ProtectedRoute({ children }) {
   return isAdminAuthenticated() ? children : <Navigate to="/admin/login" replace />;
 }
 
+function AdminFallbackRoute() {
+  return isAdminAuthenticated() ? <Navigate to="/dashboard" replace /> : <Login />;
+}
+
 function App() {
   const location = useLocation();
 
@@ -33,6 +37,7 @@ function App() {
       <Route path="/watch/:matchId" element={<WatchPage />} />
       <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
       <Route path="/admin/login" element={<Login />} />
+      <Route path="/dashboard/admin" element={<AdminFallbackRoute />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/dashboard/matches" element={<ProtectedRoute><Matches /></ProtectedRoute>} />
       <Route path="/dashboard/streams" element={<ProtectedRoute><Streams /></ProtectedRoute>} />

@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAdminUsername, isAdminAuthenticated, loginAdmin } from "../utils/auth.js";
+import { getAdminSetupMessage, getAdminUsername, isAdminAuthenticated, loginAdmin } from "../utils/auth.js";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
+  const setupMessage = getAdminSetupMessage();
 
   useEffect(() => {
     if (isAdminAuthenticated()) {
@@ -14,7 +17,7 @@ export default function Login() {
     }
   }, [navigate]);
 
-  function handleLogin(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     if (!username.trim() || !password.trim()) {
@@ -22,14 +25,28 @@ export default function Login() {
       return;
     }
 
-    const ok = loginAdmin(username.trim(), password);
-
-    if (ok) {
-      setError("");
-      navigate("/dashboard", { replace: true });
-    } else {
-      setError("Invalid username or password.");
+    if (!/^\d{6}$/.test(totpCode.trim())) {
+      setError("Enter the 6-digit verification code from your authenticator app.");
+      return;
     }
+
+    if (setupMessage) {
+      setError(setupMessage);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError("");
+
+    const result = await loginAdmin(username.trim(), password, totpCode.trim());
+
+    if (result.success) {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
+
+    setError(result.message || "Unable to sign in.");
+    setIsSubmitting(false);
   }
 
   return (
@@ -47,7 +64,7 @@ export default function Login() {
       <div
         style={{
           width: "100%",
-          maxWidth: "380px",
+          maxWidth: "420px",
           background: "#0f172a",
           padding: "30px",
           borderRadius: "16px",
@@ -57,10 +74,10 @@ export default function Login() {
       >
         <h2 style={{ margin: "0 0 8px", fontSize: "24px" }}>Admin Login</h2>
         <p style={{ margin: "0 0 20px", color: "#94a3b8" }}>
-          Sign in to manage the football-stream dashboard.
+          Sign in with your username, password, and the 6-digit code from your authenticator app.
         </p>
 
-        <form onSubmit={handleLogin} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           <input
             type="text"
             placeholder="Username"
@@ -99,6 +116,45 @@ export default function Login() {
             }}
           />
 
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="123456"
+            value={totpCode}
+            onChange={(event) => {
+              setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6));
+              if (error) setError("");
+            }}
+            style={{
+              width: "100%",
+              padding: "12px 14px",
+              borderRadius: "10px",
+              border: "1px solid #334155",
+              background: "#020617",
+              color: "white",
+              boxSizing: "border-box",
+              letterSpacing: "0.2em",
+              textAlign: "center",
+            }}
+          />
+
+          {setupMessage ? (
+            <div
+              style={{
+                padding: "10px 12px",
+                borderRadius: "10px",
+                background: "rgba(56, 189, 248, 0.14)",
+                color: "#bae6fd",
+                border: "1px solid rgba(56, 189, 248, 0.2)",
+                fontSize: "14px",
+              }}
+              role="status"
+            >
+              {setupMessage}
+            </div>
+          ) : null}
+
           {error ? (
             <div
               style={{
@@ -116,23 +172,27 @@ export default function Login() {
 
           <button
             type="submit"
+            disabled={isSubmitting}
             style={{
               width: "100%",
               padding: "12px",
               borderRadius: "10px",
-              background: "#10b981",
+              background: isSubmitting ? "#475569" : "#10b981",
               color: "white",
               border: "none",
               fontWeight: 700,
-              cursor: "pointer",
+              cursor: isSubmitting ? "wait" : "pointer",
             }}
           >
-            Login
+            {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
         </form>
 
         <p style={{ margin: "16px 0 0", color: "#94a3b8", fontSize: "14px" }}>
-          Default login: {getAdminUsername()} / admin123
+          Expected username: {getAdminUsername() || "(set VITE_ADMIN_USERNAME)"}
+        </p>
+        <p style={{ margin: "4px 0 0", color: "#94a3b8", fontSize: "14px" }}>
+          The login uses a pre-provisioned TOTP secret from VITE_ADMIN_TOTP_SECRET and clears session state on logout.
         </p>
       </div>
     </div>

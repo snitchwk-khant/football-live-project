@@ -1,3 +1,5 @@
+import { sanitizePlainText } from "./security";
+
 export const SETTINGS_STORAGE_KEY = "football-stream-settings";
 
 export const DEFAULT_SETTINGS = {
@@ -36,12 +38,23 @@ export function readSettings() {
 
 export function writeSettings(nextSettings) {
   const sanitized = {
-    ...DEFAULT_SETTINGS,
-    ...nextSettings,
+    siteName: sanitizePlainText(nextSettings?.siteName, { maxLength: 80 }) || DEFAULT_SETTINGS.siteName,
+    heroTitle: sanitizePlainText(nextSettings?.heroTitle, { maxLength: 120 }) || DEFAULT_SETTINGS.heroTitle,
+    heroSubtitle: sanitizePlainText(nextSettings?.heroSubtitle, { maxLength: 240 }) || DEFAULT_SETTINGS.heroSubtitle,
+    contactTelegram: sanitizePlainText(nextSettings?.contactTelegram, { maxLength: 80 }) || DEFAULT_SETTINGS.contactTelegram,
+    contactViber: sanitizePlainText(nextSettings?.contactViber, { maxLength: 80 }) || DEFAULT_SETTINGS.contactViber,
+    contactPhone: sanitizePlainText(nextSettings?.contactPhone, { maxLength: 80 }) || DEFAULT_SETTINGS.contactPhone,
+    footerText: sanitizePlainText(nextSettings?.footerText, { maxLength: 240 }) || DEFAULT_SETTINGS.footerText,
+    seoTitle: sanitizePlainText(nextSettings?.seoTitle, { maxLength: 120 }) || DEFAULT_SETTINGS.seoTitle,
+    seoDescription: sanitizePlainText(nextSettings?.seoDescription, { maxLength: 260 }) || DEFAULT_SETTINGS.seoDescription,
   };
 
   if (typeof window !== "undefined") {
-    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(sanitized));
+    const persisted = {
+      ...sanitized,
+    };
+
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(persisted));
     window.dispatchEvent(new Event("website-settings-updated"));
   }
 
