@@ -1,5 +1,6 @@
 
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Login from "./admin/Login.jsx";
 import Dashboard from "./admin/Dashboard.jsx";
@@ -10,12 +11,19 @@ import Settings from "./admin/Settings.jsx";
 import Media from "./admin/Media/index.jsx";
 import Analytics from "./admin/Analytics.jsx";
 import { isAdminAuthenticated } from "./utils/auth.js";
+import { recordViewerVisit } from "./utils/viewerAnalytics.js";
 
 function ProtectedRoute({ children }) {
   return isAdminAuthenticated() ? children : <Navigate to="/admin/login" replace />;
 }
 
 function App() {
+  const location = useLocation();
+
+  useEffect(() => {
+    recordViewerVisit(`${location.pathname}${location.search}`);
+  }, [location.pathname, location.search]);
+
   return (
     <Routes>
       <Route path="/" element={<Home />} />

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import { supabase } from "../services/supabase";
+import { clearViewerAnalytics, getViewerAnalytics } from "../utils/viewerAnalytics";
 
 const MEDIA_BUCKET = "media";
 
@@ -24,6 +25,22 @@ function formatLabel(value) {
   return value.length > 40 ? `${value.slice(0, 37)}...` : value;
 }
 
+function formatTimestamp(value) {
+  if (!value) return "—";
+
+  const dateValue = new Date(value);
+  if (Number.isNaN(dateValue.getTime())) {
+    return "—";
+  }
+
+  return dateValue.toLocaleString("en", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export default function Analytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -40,9 +57,27 @@ export default function Analytics() {
     banners: [],
     media: [],
   });
+  const [viewerStats, setViewerStats] = useState({
+    totalPageViews: 0,
+    todayPageViews: 0,
+    uniqueVisitors: 0,
+    mostViewedPages: [],
+    recentVisits: [],
+  });
 
   useEffect(() => {
     let active = true;
+
+    function syncViewerAnalytics() {
+      const analyticsSnapshot = getViewerAnalytics();
+      setViewerStats({
+        totalPageViews: analyticsSnapshot.totalPageViews || 0,
+        todayPageViews: analyticsSnapshot.todayPageViews || 0,
+        uniqueVisitors: analyticsSnapshot.visitorId ? 1 : 0,
+        mostViewedPages: analyticsSnapshot.mostViewedPages || [],
+        recentVisits: analyticsSnapshot.recentVisits || [],
+      });
+    }
 
     async function loadAnalytics() {
       try {
@@ -96,10 +131,30 @@ export default function Analytics() {
 
     void loadAnalytics();
 
+    syncViewerAnalytics();
+
+    window.addEventListener("viewer-analytics-updated", syncViewerAnalytics);
+    window.addEventListener("viewer-analytics-cleared", syncViewerAnalytics);
+    window.addEventListener("storage", syncViewerAnalytics);
+
     return () => {
       active = false;
+      window.removeEventListener("viewer-analytics-updated", syncViewerAnalytics);
+      window.removeEventListener("viewer-analytics-cleared", syncViewerAnalytics);
+      window.removeEventListener("storage", syncViewerAnalytics);
     };
   }, []);
+
+  const handleClearViewerAnalytics = () => {
+    clearViewerAnalytics();
+    setViewerStats({
+      totalPageViews: 0,
+      todayPageViews: 0,
+      uniqueVisitors: 0,
+      mostViewedPages: [],
+      recentVisits: [],
+    });
+  };
 
   const summaryCards = [
     { label: "Total matches", value: stats.totalMatches, hint: "All saved fixtures" },
@@ -140,6 +195,88 @@ export default function Analytics() {
             </section>
 
             <section style={styles.contentGrid}>
+              <article style={styles.panel}>
+                <div style={styles.panelHeader}>
+                  <h2 style={styles.panelTitle}>Website viewer analytics</h2>
+                  <p style={styles.panelHint}>Local-only public page-view tracking for development and testing.</p>
+                </div>
+
+                <div style={styles.viewerActions}>
+                  <button type="button" onClick={handleClearViewerAnalytics} style={styles.clearButton}>
+                    Clear viewer analytics
+                  </button>
+                </div>
+
+                <div style={styles.cardsGrid}>
+                  <article style={styles.card}>
+                    <p style={styles.cardLabel}>Total page views</p>
+                    <h2 style={styles.cardValue}>{viewerStats.totalPageViews}</h2>
+                    <p style={styles.cardHint}>All tracked public visits</p>
+                  </article>
+                  <article style={styles.card}>
+                    <p style={styles.cardLabel}>Today views</p>
+                    <h2 style={styles.cardValue}>{viewerStats.todayPageViews}</h2>
+                    <p style={styles.cardHint}>Visits captured today</p>
+                  </article>
+                  <article style={styles.card}>
+                    <p style={styles.cardLabel}>Unique visitors</p>
+                    <h2 style={styles.cardValue}>{viewerStats.uniqueVisitors}</h2>
+                    <p style={styles.cardHint}>Tracked in this browser</p>
+                  </article>
+                  <article style={styles.card}>
+                    <p style={styles.cardLabel}>Most viewed page</p>
+                    <h2 style={styles.cardValue}>{viewerStats.mostViewedPages[0]?.path || "—"}</h2>
+                    <p style={styles.cardHint}>{viewerStats.mostViewedPages[0] ? `${viewerStats.mostViewedPages[0].count} views` : "No public page views yet"}</p>
+                  </article>
+                </div>
+
+                <div style={styles.viewerGrid}>
+                  <div style={styles.viewerSection}>
+                    <h3 style={styles.columnTitle}>Most viewed pages</h3>
+                    {viewerStats.mostViewedPages.length ? (
+                      <ul style={styles.list}>
+                        {viewerStats.mostViewedPages.map((page) => (
+                          <li key={page.path} style={styles.listItem}>
+                            <span style={styles.listPath}>{page.path}</span>
+                            <span style={styles.listCount}>{page.count} views</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p style={styles.emptyState}>No public page view data yet.</p>
+                    )}
+                  </div>
+
+                  <div style={styles.viewerSection}>
+                    <h3 style={styles.columnTitle}>Recent website visits</h3>
+                    {viewerStats.recentVisits.length ? (
+                      <div style={styles.tableWrap}>
+                        <table style={styles.table}>
+                          <thead>
+                            <tr>
+                              <th style={styles.tableHeader}>Page</th>
+                              <th style={styles.tableHeader}>Device / browser</th>
+                              <th style={styles.tableHeader}>Timestamp</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {viewerStats.recentVisits.map((visit, index) => (
+                              <tr key={`${visit.path}-${visit.timestamp}-${index}`}>
+                                <td style={styles.tableCell}>{visit.path}</td>
+                                <td style={styles.tableCell}>{`${visit.device} / ${visit.browser}`}</td>
+                                <td style={styles.tableCell}>{formatTimestamp(visit.timestamp)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p style={styles.emptyState}>No public visits recorded yet.</p>
+                    )}
+                  </div>
+                </div>
+              </article>
+
               <article style={styles.panel}>
                 <div style={styles.panelHeader}>
                   <h2 style={styles.panelTitle}>Recent activity</h2>
@@ -357,5 +494,79 @@ const styles = {
     margin: 0,
     color: "#64748b",
     fontSize: "14px",
+  },
+  viewerActions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    marginBottom: "16px",
+  },
+  clearButton: {
+    border: "1px solid rgba(248, 113, 113, 0.4)",
+    background: "rgba(127, 29, 29, 0.3)",
+    color: "#fecaca",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontWeight: 600,
+  },
+  viewerGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "16px",
+    marginTop: "16px",
+  },
+  viewerSection: {
+    background: "#020617",
+    border: "1px solid #1e293b",
+    borderRadius: "12px",
+    padding: "16px",
+  },
+  list: {
+    listStyle: "none",
+    padding: 0,
+    margin: 0,
+    display: "grid",
+    gap: "10px",
+  },
+  listItem: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    alignItems: "center",
+    padding: "10px 0",
+    borderBottom: "1px solid #1e293b",
+  },
+  listPath: {
+    color: "#f8fafc",
+    fontWeight: 600,
+    wordBreak: "break-all",
+  },
+  listCount: {
+    color: "#38bdf8",
+    fontSize: "13px",
+    whiteSpace: "nowrap",
+  },
+  tableWrap: {
+    overflowX: "auto",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+  },
+  tableHeader: {
+    textAlign: "left",
+    padding: "8px 0",
+    color: "#94a3b8",
+    fontSize: "12px",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+    borderBottom: "1px solid #1e293b",
+  },
+  tableCell: {
+    padding: "10px 0",
+    color: "#cbd5e1",
+    borderBottom: "1px solid #1e293b",
+    fontSize: "14px",
+    verticalAlign: "top",
   },
 };
