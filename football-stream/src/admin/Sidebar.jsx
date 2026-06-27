@@ -32,6 +32,9 @@ export default function Sidebar() {
         <Link style={linkStyle} to="/dashboard/media">
           Media
         </Link>
+        <Link style={linkStyle} to="/dashboard/analytics">
+          Analytics
+        </Link>
         <Link style={linkStyle} to="/dashboard/settings">
           Settings
         </Link>

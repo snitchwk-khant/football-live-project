@@ -8,6 +8,7 @@ import Streams from "./admin/Streams.jsx";
 import Banners from "./admin/Banners.jsx";
 import Settings from "./admin/Settings.jsx";
 import Media from "./admin/Media/index.jsx";
+import Analytics from "./admin/Analytics.jsx";
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
       <Route path="/dashboard/streams" element={<Streams />} />
       <Route path="/dashboard/banners" element={<Banners />} />
       <Route path="/dashboard/media" element={<Media />} />
+      <Route path="/dashboard/analytics" element={<Analytics />} />
       <Route path="/dashboard/settings" element={<Settings />} />
     </Routes>
   );

@@ -6,6 +6,7 @@ const cards = [
   { title: "Streams", description: "Update the live stream URL", to: "/dashboard/streams" },
   { title: "Banners", description: "Manage advertisements and promos", to: "/dashboard/banners" },
   { title: "Media Library", description: "Upload and organise media files", to: "/dashboard/media" },
+  { title: "Analytics", description: "View content summaries and recent activity", to: "/dashboard/analytics" },
   { title: "Settings", description: "Edit website branding, hero content, and contact details", to: "/dashboard/settings" },
 ];
 
