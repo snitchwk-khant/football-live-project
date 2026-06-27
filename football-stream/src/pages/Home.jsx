@@ -24,6 +24,12 @@ export default function Home() {
   const [bannerLoading, setBannerLoading] = useState(true);
   const [bannerError, setBannerError] = useState("");
   const [popupDismissed, setPopupDismissed] = useState(false);
+  const [upcomingMatches, setUpcomingMatches] = useState([]);
+  const [upcomingLoading, setUpcomingLoading] = useState(true);
+  const [upcomingError, setUpcomingError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLeague, setSelectedLeague] = useState("all");
+  const [countdown, setCountdown] = useState(null);
 
   const fetchLiveMatch = useCallback(async () => {
     setMatchLoading(true);
@@ -97,6 +103,38 @@ export default function Home() {
     setBannerLoading(false);
   }, []);
 
+  const fetchUpcomingMatches = useCallback(async () => {
+    setUpcomingLoading(true);
+    setUpcomingError("");
+
+    let query = supabase
+      .from("matches")
+      .select("id,title,home_team,away_team,league,status,match_time,is_live")
+      .eq("is_live", false)
+      .order("match_time", { ascending: true });
+
+    if (match.id) {
+      query = query.neq("id", match.id);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      setUpcomingError(error.message);
+      setUpcomingLoading(false);
+      return;
+    }
+
+    const normalizedMatches = (data || [])
+      .filter((item) => item && item.match_time)
+      .filter((item) => new Date(item.match_time).getTime() > Date.now())
+      .sort((a, b) => new Date(a.match_time) - new Date(b.match_time))
+      .slice(0, 5);
+
+    setUpcomingMatches(normalizedMatches);
+    setUpcomingLoading(false);
+  }, [match.id]);
+
   const hasPlayableStreamUrl = useCallback((url) => {
     if (!url || typeof url !== "string") {
       return false;
@@ -123,7 +161,10 @@ export default function Home() {
     let active = true;
 
     Promise.resolve().then(() => {
-      if (active) refreshLiveMatch();
+      if (active) {
+        void refreshLiveMatch();
+        void fetchUpcomingMatches();
+      }
     });
 
     const channel = supabase
@@ -138,12 +179,14 @@ export default function Home() {
         () => {
           refreshLiveMatch().then(() => {
             if (!active) return;
+            void fetchUpcomingMatches();
           });
         }
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
           refreshLiveMatch();
+          void fetchUpcomingMatches();
         }
       });
 
@@ -151,7 +194,7 @@ export default function Home() {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [refreshLiveMatch]);
+  }, [refreshLiveMatch, fetchUpcomingMatches]);
 
   useEffect(() => {
     let active = true;
@@ -291,6 +334,41 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!upcomingMatches.length) {
+      const timer = window.setTimeout(() => setCountdown(null), 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    const nextMatch = upcomingMatches[0];
+    if (!nextMatch?.match_time) {
+      const timer = window.setTimeout(() => setCountdown(null), 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    const targetTime = new Date(nextMatch.match_time).getTime();
+
+    const updateCountdown = () => {
+      const diff = targetTime - Date.now();
+      if (diff <= 0) {
+        setCountdown(null);
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
+
+      setCountdown({ days, hours, minutes, seconds });
+    };
+
+    const timer = window.setInterval(updateCountdown, 1000);
+    updateCountdown();
+
+    return () => window.clearInterval(timer);
+  }, [upcomingMatches]);
+
+  useEffect(() => {
     if (!playerRef.current) return;
 
     if (!match.stream_url || !hasPlayableStreamUrl(match.stream_url)) {
@@ -317,6 +395,27 @@ export default function Home() {
         timeStyle: "short",
       }).format(new Date(match.match_time))
     : "Not scheduled";
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredMatches = upcomingMatches.filter((item) => {
+    const haystack = [item.home_team, item.away_team, item.league]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const matchesQuery = !normalizedQuery || haystack.includes(normalizedQuery);
+    const matchesLeague = selectedLeague === "all" || item.league === selectedLeague;
+
+    return matchesQuery && matchesLeague;
+  });
+
+  const leagueOptions = Array.from(new Set(upcomingMatches.map((item) => item.league).filter(Boolean)));
+  const nextKickoff = filteredMatches[0] || upcomingMatches[0] || null;
+  const countdownLabel = countdown
+    ? `${countdown.days}d ${countdown.hours}h ${countdown.minutes}m ${countdown.seconds}s`
+    : nextKickoff?.match_time
+      ? "Kickoff time is now"
+      : "No upcoming fixtures";
 
   const topBanner = banners.find((banner) => banner.position === "top");
   const bottomBanner = banners.find((banner) => banner.position === "bottom");
@@ -415,6 +514,81 @@ export default function Home() {
       padding: "20px",
       border: "1px solid #1e293b",
       height: "260px",
+    },
+    upcomingCard: {
+      backgroundColor: "#0f172a",
+      borderRadius: "12px",
+      border: "1px solid #1e293b",
+      padding: "20px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "16px",
+      boxShadow: "0 8px 24px rgba(2, 6, 23, 0.3)",
+    },
+    upcomingHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: "12px",
+      flexWrap: "wrap",
+    },
+    upcomingControls: {
+      display: "flex",
+      gap: "12px",
+      flexWrap: "wrap",
+      alignItems: "center",
+    },
+    controlInput: {
+      backgroundColor: "#020617",
+      border: "1px solid #334155",
+      borderRadius: "8px",
+      color: "#f8fafc",
+      padding: "10px 12px",
+      minWidth: "180px",
+      outline: "none",
+    },
+    controlSelect: {
+      backgroundColor: "#020617",
+      border: "1px solid #334155",
+      borderRadius: "8px",
+      color: "#f8fafc",
+      padding: "10px 12px",
+      minWidth: "170px",
+      outline: "none",
+    },
+    upcomingList: {
+      display: "grid",
+      gap: "12px",
+      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    },
+    upcomingItem: {
+      backgroundColor: "#111827",
+      border: "1px solid #243447",
+      borderRadius: "10px",
+      padding: "14px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+    },
+    matchTitle: {
+      margin: 0,
+      fontSize: "16px",
+      fontWeight: 700,
+      color: "#f8fafc",
+    },
+    matchMeta: {
+      margin: 0,
+      color: "#94a3b8",
+      fontSize: "13px",
+    },
+    countdownPill: {
+      alignSelf: "flex-start",
+      backgroundColor: "rgba(16, 185, 129, 0.14)",
+      color: "#34d399",
+      borderRadius: "999px",
+      padding: "6px 10px",
+      fontSize: "12px",
+      fontWeight: 700,
     },
     sideAd: {
       backgroundColor: "#0f172a",
@@ -612,6 +786,60 @@ export default function Home() {
               </div>
             </div>
           ) : null}
+
+          <div style={styles.upcomingCard}>
+            <div style={styles.upcomingHeader}>
+              <div>
+                <p style={styles.bannerLabel}>Upcoming Matches</p>
+                <h3 style={styles.bannerTitle}>Next kickoffs</h3>
+              </div>
+              <div style={styles.countdownPill}>{countdownLabel}</div>
+            </div>
+            <div style={styles.upcomingControls}>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search teams or league"
+                style={styles.controlInput}
+                aria-label="Search upcoming matches"
+              />
+              <select
+                value={selectedLeague}
+                onChange={(event) => setSelectedLeague(event.target.value)}
+                style={styles.controlSelect}
+                aria-label="Filter by league"
+              >
+                <option value="all">All Leagues</option>
+                {leagueOptions.map((league) => (
+                  <option key={league} value={league}>
+                    {league}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {upcomingLoading ? (
+              <p style={styles.matchMeta}>Loading upcoming matches…</p>
+            ) : upcomingError ? (
+              <p style={styles.bannerError}>{upcomingError}</p>
+            ) : filteredMatches.length > 0 ? (
+              <div style={styles.upcomingList}>
+                {filteredMatches.map((item) => (
+                  <div key={item.id} style={styles.upcomingItem}>
+                    <p style={styles.matchTitle}>{item.title || `${item.home_team || "Home"} vs ${item.away_team || "Away"}`}</p>
+                    <p style={styles.matchMeta}>{item.home_team || "Home team"} vs {item.away_team || "Away team"}</p>
+                    <p style={styles.matchMeta}>{item.league || "League not set"}</p>
+                    <p style={styles.matchMeta}>{new Intl.DateTimeFormat(undefined, {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    }).format(new Date(item.match_time))}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={styles.matchMeta}>No upcoming matches match the current search.</p>
+            )}
+          </div>
 
           <div style={styles.adBox}>
             <p>Sponsored Advertisement</p>
