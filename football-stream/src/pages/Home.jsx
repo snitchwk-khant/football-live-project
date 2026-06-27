@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
 import { supabase } from "../services/supabase";
 import { readSettings } from "../utils/settings";
+import { formatMatchTime, getMatchPoster, getMatchTitle, hasPlayableStreamUrl, normalizeMatchStatus } from "../utils/matches";
 
 export default function Home() {
   const videoRef = useRef(null);
@@ -28,6 +30,9 @@ export default function Home() {
   const [upcomingMatches, setUpcomingMatches] = useState([]);
   const [upcomingLoading, setUpcomingLoading] = useState(true);
   const [upcomingError, setUpcomingError] = useState("");
+  const [publicMatches, setPublicMatches] = useState([]);
+  const [publicMatchesLoading, setPublicMatchesLoading] = useState(true);
+  const [publicMatchesError, setPublicMatchesError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLeague, setSelectedLeague] = useState("all");
   const [countdown, setCountdown] = useState(null);
@@ -137,26 +142,24 @@ export default function Home() {
     setUpcomingLoading(false);
   }, [match.id]);
 
-  const hasPlayableStreamUrl = useCallback((url) => {
-    if (!url || typeof url !== "string") {
-      return false;
+  const fetchPublicMatches = useCallback(async () => {
+    setPublicMatchesLoading(true);
+    setPublicMatchesError("");
+
+    const { data, error } = await supabase
+      .from("matches")
+      .select("id,title,home_team,away_team,league,status,match_time,is_live,poster,stream_url")
+      .order("match_time", { ascending: true });
+
+    if (error) {
+      setPublicMatchesError(error.message);
+      setPublicMatchesLoading(false);
+      return;
     }
 
-    const normalizedUrl = url.trim();
-    if (!normalizedUrl || normalizedUrl.includes("<") || normalizedUrl.includes(">")) {
-      return false;
-    }
-
-    if (normalizedUrl.includes("video-id") || normalizedUrl.includes("<video-id>")) {
-      return false;
-    }
-
-    try {
-      const parsedUrl = new URL(normalizedUrl);
-      return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
-    } catch {
-      return false;
-    }
+    const normalizedMatches = (data || []).filter((item) => item && item.id).slice(0, 6);
+    setPublicMatches(normalizedMatches);
+    setPublicMatchesLoading(false);
   }, []);
 
   useEffect(() => {
@@ -166,6 +169,7 @@ export default function Home() {
       if (active) {
         void refreshLiveMatch();
         void fetchUpcomingMatches();
+        void fetchPublicMatches();
       }
     });
 
@@ -182,6 +186,7 @@ export default function Home() {
           refreshLiveMatch().then(() => {
             if (!active) return;
             void fetchUpcomingMatches();
+            void fetchPublicMatches();
           });
         }
       )
@@ -189,6 +194,7 @@ export default function Home() {
         if (status === "SUBSCRIBED") {
           refreshLiveMatch();
           void fetchUpcomingMatches();
+          void fetchPublicMatches();
         }
       });
 
@@ -196,7 +202,7 @@ export default function Home() {
       active = false;
       supabase.removeChannel(channel);
     };
-  }, [refreshLiveMatch, fetchUpcomingMatches]);
+  }, [refreshLiveMatch, fetchUpcomingMatches, fetchPublicMatches]);
 
   useEffect(() => {
     let active = true;
@@ -324,7 +330,7 @@ export default function Home() {
         window.clearTimeout(retryTimeout);
       }
     };
-  }, [hasPlayableStreamUrl, match.stream_url]);
+  }, [match.stream_url]);
 
   useEffect(() => {
     const handleSettingsUpdate = () => {
@@ -405,13 +411,10 @@ export default function Home() {
       playerRef.current.load();
       playerRef.current.play().catch(() => {});
     }
-  }, [hasPlayableStreamUrl, match.stream_url]);
+  }, [match.stream_url]);
 
   const matchTime = match.match_time
-    ? new Intl.DateTimeFormat(undefined, {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(new Date(match.match_time))
+    ? formatMatchTime(match.match_time)
     : "Not scheduled";
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
@@ -573,6 +576,53 @@ export default function Home() {
       padding: "10px 12px",
       minWidth: "170px",
       outline: "none",
+    },
+    publicMatchesCard: {
+      backgroundColor: "#0f172a",
+      borderRadius: "12px",
+      border: "1px solid #1e293b",
+      padding: "20px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "16px",
+      boxShadow: "0 8px 24px rgba(2, 6, 23, 0.3)",
+      marginTop: "20px",
+    },
+    publicMatchesGrid: {
+      display: "grid",
+      gap: "12px",
+      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+    },
+    publicMatchItem: {
+      backgroundColor: "#111827",
+      border: "1px solid #243447",
+      borderRadius: "10px",
+      padding: "14px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+      cursor: "pointer",
+    },
+    publicMatchPoster: {
+      width: "100%",
+      height: "120px",
+      objectFit: "cover",
+      borderRadius: "8px",
+      backgroundColor: "#020617",
+      marginBottom: "4px",
+    },
+    publicActionButton: {
+      border: 0,
+      borderRadius: "8px",
+      backgroundColor: "#10b981",
+      color: "#052e16",
+      padding: "8px 10px",
+      fontWeight: 700,
+      cursor: "pointer",
+      textDecoration: "none",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
     },
     upcomingList: {
       display: "grid",
@@ -859,6 +909,52 @@ export default function Home() {
               </div>
             ) : (
               <p style={styles.matchMeta}>No upcoming matches match the current search.</p>
+            )}
+          </div>
+
+          <div style={styles.publicMatchesCard}>
+            <div style={styles.upcomingHeader}>
+              <div>
+                <p style={styles.bannerLabel}>Public Match List</p>
+                <h3 style={styles.bannerTitle}>Featured fixtures</h3>
+              </div>
+              <Link to="/matches" style={styles.publicActionButton}>
+                View all matches
+              </Link>
+            </div>
+            {publicMatchesLoading ? (
+              <p style={styles.matchMeta}>Loading featured matches…</p>
+            ) : publicMatchesError ? (
+              <p style={styles.bannerError}>{publicMatchesError}</p>
+            ) : publicMatches.length > 0 ? (
+              <div style={styles.publicMatchesGrid}>
+                {publicMatches.map((item) => {
+                  const status = normalizeMatchStatus(item);
+                  const poster = getMatchPoster(item);
+                  return (
+                    <div key={item.id} style={styles.publicMatchItem} onClick={() => window.location.assign(`/watch/${item.id}`)} onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        window.location.assign(`/watch/${item.id}`);
+                      }
+                    }} tabIndex={0} role="button">
+                      {poster ? <img src={poster} alt={getMatchTitle(item)} style={styles.publicMatchPoster} /> : null}
+                      <p style={styles.matchTitle}>{getMatchTitle(item)}</p>
+                      <p style={styles.matchMeta}>{item.home_team || "Home team"} vs {item.away_team || "Away team"}</p>
+                      <p style={styles.matchMeta}>{item.league || "League not set"}</p>
+                      <p style={styles.matchMeta}>{formatMatchTime(item.match_time)}</p>
+                      <p style={{ ...styles.matchMeta, fontWeight: 700, color: status === "live" ? "#34d399" : status === "ended" ? "#f87171" : "#38bdf8" }}>
+                        {status === "live" ? "Live" : status === "ended" ? "Ended" : "Upcoming"}
+                      </p>
+                      <Link to={`/watch/${item.id}`} style={styles.publicActionButton}>
+                        Watch
+                      </Link>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p style={styles.matchMeta}>No public matches have been added yet.</p>
             )}
           </div>
 

@@ -2,6 +2,8 @@
 import { useEffect } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import Home from "./pages/Home.jsx";
+import MatchesPage from "./pages/Matches.jsx";
+import WatchPage from "./pages/Watch.jsx";
 import Login from "./admin/Login.jsx";
 import Dashboard from "./admin/Dashboard.jsx";
 import Matches from "./admin/Matches";
@@ -27,6 +29,8 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/matches" element={<MatchesPage />} />
+      <Route path="/watch/:matchId" element={<WatchPage />} />
       <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
       <Route path="/admin/login" element={<Login />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
