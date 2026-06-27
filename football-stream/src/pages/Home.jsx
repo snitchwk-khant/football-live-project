@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
 import { supabase } from "../services/supabase";
+import { readSettings } from "../utils/settings";
 
 export default function Home() {
   const videoRef = useRef(null);
@@ -30,6 +31,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLeague, setSelectedLeague] = useState("all");
   const [countdown, setCountdown] = useState(null);
+  const [settings, setSettings] = useState(readSettings());
 
   const fetchLiveMatch = useCallback(async () => {
     setMatchLoading(true);
@@ -325,13 +327,29 @@ export default function Home() {
   }, [hasPlayableStreamUrl, match.stream_url]);
 
   useEffect(() => {
+    const handleSettingsUpdate = () => {
+      setSettings(readSettings());
+    };
+
+    window.addEventListener("website-settings-updated", handleSettingsUpdate);
+
+    if (settings.seoTitle) {
+      document.title = settings.seoTitle;
+    }
+
+    const descriptionTag = document.querySelector('meta[name="description"]');
+    if (descriptionTag && settings.seoDescription) {
+      descriptionTag.setAttribute("content", settings.seoDescription);
+    }
+
     return () => {
+      window.removeEventListener("website-settings-updated", handleSettingsUpdate);
       if (playerRef.current) {
         playerRef.current.dispose();
         playerRef.current = null;
       }
     };
-  }, []);
+  }, [settings.seoDescription, settings.seoTitle]);
 
   useEffect(() => {
     if (!upcomingMatches.length) {
@@ -726,7 +744,10 @@ export default function Home() {
       ) : null}
 
       <header style={styles.header}>
-        <h1 style={styles.logo}>LIVE FOOTBALL</h1>
+        <div>
+          <h1 style={styles.logo}>{settings.siteName}</h1>
+          <p style={{ margin: "4px 0 0", color: "#cbd5e1", fontSize: "14px" }}>{settings.heroSubtitle}</p>
+        </div>
         <div style={styles.badge}>
           ● {match.is_live ? "LIVE NOW" : "NO LIVE MATCH"}
         </div>
@@ -843,7 +864,7 @@ export default function Home() {
 
           <div style={styles.adBox}>
             <p>Sponsored Advertisement</p>
-            <h2>သင့်လုပ်ငန်းကြော်ငြာများကို ဤနေရာတွင် ထည့်သွင်းနိုင်ပါသည်</h2>
+            <h2>{settings.heroTitle}</h2>
           </div>
         </div>
 
@@ -884,11 +905,28 @@ export default function Home() {
           ) : null}
 
           <div style={styles.sideAd}>
-            <p>ADVERTISEMENT</p>
-            <span>Side Banner Ads</span>
+            <p>CONTACT</p>
+            <span>{settings.contactTelegram}</span>
+            <br />
+            <span>{settings.contactPhone}</span>
           </div>
         </div>
       </main>
+      <footer
+        style={{
+          padding: "24px 20px 40px",
+          textAlign: "center",
+          color: "#94a3b8",
+          backgroundColor: "#020617",
+          borderTop: "1px solid #1e293b",
+          marginTop: "24px",
+        }}
+      >
+        <p style={{ margin: 0 }}>{settings.footerText}</p>
+        <p style={{ margin: "8px 0 0", color: "#cbd5e1" }}>
+          {settings.contactTelegram} • {settings.contactViber} • {settings.contactPhone}
+        </p>
+      </footer>
     </div>
   );
 }
