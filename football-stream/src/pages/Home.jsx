@@ -17,6 +17,10 @@ export default function Home() {
     match_time: null,
     is_live: false,
   });
+  const [banners, setBanners] = useState([]);
+  const [bannerLoading, setBannerLoading] = useState(true);
+  const [bannerError, setBannerError] = useState("");
+  const [popupDismissed, setPopupDismissed] = useState(false);
 
   const fetchLiveMatch = useCallback(async () => {
     const { data, error } = await supabase
@@ -59,6 +63,49 @@ export default function Home() {
     applyMatch(data);
   }, [fetchLiveMatch]);
 
+  const fetchBanners = useCallback(async () => {
+    setBannerLoading(true);
+    setBannerError("");
+
+    const { data, error } = await supabase
+      .from("banners")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.log("Load banners error:", error);
+      setBannerError(error.message);
+      setBannerLoading(false);
+      return;
+    }
+
+    setBanners(data || []);
+    setBannerLoading(false);
+  }, []);
+
+  const hasPlayableStreamUrl = useCallback((url) => {
+    if (!url || typeof url !== "string") {
+      return false;
+    }
+
+    const normalizedUrl = url.trim();
+    if (!normalizedUrl || normalizedUrl.includes("<") || normalizedUrl.includes(">")) {
+      return false;
+    }
+
+    if (normalizedUrl.includes("video-id") || normalizedUrl.includes("<video-id>")) {
+      return false;
+    }
+
+    try {
+      const parsedUrl = new URL(normalizedUrl);
+      return parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
 
@@ -96,7 +143,56 @@ export default function Home() {
   }, [refreshLiveMatch]);
 
   useEffect(() => {
-    if (videoRef.current && !playerRef.current && match.stream_url) {
+    let active = true;
+
+    const runBannerRefresh = () => {
+      if (active) {
+        void fetchBanners();
+      }
+    };
+
+    Promise.resolve().then(runBannerRefresh);
+
+    const channel = supabase
+      .channel("public-banners-homepage")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "banners",
+        },
+        () => {
+          runBannerRefresh();
+        }
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          console.log("Banners realtime connected");
+        }
+      });
+
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [fetchBanners]);
+
+  useEffect(() => {
+    if (!hasPlayableStreamUrl(match.stream_url)) {
+      if (playerRef.current) {
+        playerRef.current.pause();
+        playerRef.current.dispose();
+        playerRef.current = null;
+      }
+
+      if (videoRef.current) {
+        videoRef.current.innerHTML = "";
+      }
+      return;
+    }
+
+    if (videoRef.current && !playerRef.current) {
       const videoElement = document.createElement("video");
       videoElement.className = "video-js vjs-big-play-centered";
       videoElement.setAttribute("playsinline", "true");
@@ -119,7 +215,7 @@ export default function Home() {
 
       player.on("error", () => {
         setTimeout(() => {
-          if (match.stream_url) {
+          if (match.stream_url && hasPlayableStreamUrl(match.stream_url)) {
             player.src({
               src: match.stream_url,
               type: "application/x-mpegURL",
@@ -130,8 +226,7 @@ export default function Home() {
         }, 5000);
       });
     }
-
-  }, [match.stream_url]);
+  }, [hasPlayableStreamUrl, match.stream_url]);
 
   useEffect(() => {
     return () => {
@@ -145,7 +240,7 @@ export default function Home() {
   useEffect(() => {
     if (!playerRef.current) return;
 
-    if (!match.stream_url) {
+    if (!match.stream_url || !hasPlayableStreamUrl(match.stream_url)) {
       playerRef.current.pause();
       playerRef.current.src([]);
       return;
@@ -161,7 +256,7 @@ export default function Home() {
       playerRef.current.load();
       playerRef.current.play().catch(() => {});
     }
-  }, [match.stream_url]);
+  }, [hasPlayableStreamUrl, match.stream_url]);
 
   const matchTime = match.match_time
     ? new Intl.DateTimeFormat(undefined, {
@@ -169,6 +264,11 @@ export default function Home() {
         timeStyle: "short",
       }).format(new Date(match.match_time))
     : "Not scheduled";
+
+  const topBanner = banners.find((banner) => banner.position === "top");
+  const bottomBanner = banners.find((banner) => banner.position === "bottom");
+  const sideBanner = banners.find((banner) => banner.position === "side");
+  const popupBanner = banners.find((banner) => banner.position === "popup");
 
   const styles = {
     container: {
@@ -216,6 +316,16 @@ export default function Home() {
       overflow: "hidden",
       border: "1px solid #1e293b",
     },
+    videoPlaceholder: {
+      minHeight: "320px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "24px",
+      textAlign: "center",
+      backgroundColor: "#020617",
+      color: "#94a3b8",
+    },
     adBox: {
       background: "linear-gradient(to right, #059669, #0d9488)",
       minHeight: "96px",
@@ -244,10 +354,141 @@ export default function Home() {
       height: "180px",
       textAlign: "center",
     },
+    bannerCard: {
+      backgroundColor: "#0f172a",
+      borderRadius: "12px",
+      border: "1px solid #1e293b",
+      overflow: "hidden",
+      marginBottom: "16px",
+      boxShadow: "0 8px 24px rgba(2, 6, 23, 0.3)",
+    },
+    bannerImage: {
+      display: "block",
+      width: "100%",
+      maxHeight: "220px",
+      objectFit: "cover",
+      backgroundColor: "#111827",
+    },
+    bannerBody: {
+      padding: "14px 16px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px",
+    },
+    bannerLabel: {
+      margin: 0,
+      color: "#38bdf8",
+      fontSize: "12px",
+      fontWeight: 700,
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+    },
+    bannerTitle: {
+      margin: 0,
+      color: "#f8fafc",
+      fontSize: "18px",
+      fontWeight: 700,
+    },
+    bannerText: {
+      margin: 0,
+      color: "#cbd5e1",
+      fontSize: "14px",
+      lineHeight: 1.5,
+    },
+    bannerLink: {
+      color: "#34d399",
+      fontSize: "13px",
+      fontWeight: 600,
+      textDecoration: "none",
+    },
+    bannerState: {
+      backgroundColor: "rgba(15, 23, 42, 0.95)",
+      border: "1px solid #1e293b",
+      borderRadius: "12px",
+      padding: "14px 16px",
+      marginBottom: "16px",
+      color: "#cbd5e1",
+    },
+    bannerError: {
+      color: "#fca5a5",
+    },
+    popupOverlay: {
+      position: "fixed",
+      inset: 0,
+      backgroundColor: "rgba(2, 6, 23, 0.78)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "20px",
+      zIndex: 1000,
+    },
+    popupCard: {
+      width: "min(480px, 100%)",
+      backgroundColor: "#111827",
+      borderRadius: "16px",
+      border: "1px solid #334155",
+      overflow: "hidden",
+      boxShadow: "0 20px 60px rgba(0, 0, 0, 0.45)",
+      position: "relative",
+    },
+    popupImage: {
+      display: "block",
+      width: "100%",
+      maxHeight: "280px",
+      objectFit: "cover",
+      backgroundColor: "#020617",
+    },
+    popupBody: {
+      padding: "18px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "10px",
+    },
+    popupButton: {
+      position: "absolute",
+      top: "12px",
+      right: "12px",
+      border: 0,
+      borderRadius: "999px",
+      width: "36px",
+      height: "36px",
+      cursor: "pointer",
+      backgroundColor: "rgba(2, 6, 23, 0.84)",
+      color: "#f8fafc",
+      fontSize: "18px",
+    },
   };
 
   return (
     <div style={styles.container}>
+      {popupBanner && !popupDismissed ? (
+        <div style={styles.popupOverlay}>
+          <div style={styles.popupCard}>
+            <button
+              type="button"
+              style={styles.popupButton}
+              onClick={() => setPopupDismissed(true)}
+              aria-label="Close popup banner"
+            >
+              ×
+            </button>
+            {popupBanner.image_url ? (
+              <img src={popupBanner.image_url} alt={popupBanner.title} style={styles.popupImage} />
+            ) : null}
+            <div style={styles.popupBody}>
+              <p style={styles.bannerLabel}>Popup</p>
+              <h3 style={styles.bannerTitle}>{popupBanner.title}</h3>
+              {popupBanner.description ? <p style={styles.bannerText}>{popupBanner.description}</p> : null}
+              {popupBanner.link_url ? (
+                <a href={popupBanner.link_url} target="_blank" rel="noreferrer" style={styles.bannerLink}>
+                  Learn more
+                </a>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <header style={styles.header}>
         <h1 style={styles.logo}>LIVE FOOTBALL</h1>
         <div style={styles.badge}>
@@ -257,9 +498,52 @@ export default function Home() {
 
       <main style={styles.main}>
         <div>
-          <div style={styles.videoBox}>
-            <div ref={videoRef} />
-          </div>
+          {bannerLoading ? (
+            <div style={styles.bannerState}>Loading banners...</div>
+          ) : null}
+          {bannerError ? <div style={styles.bannerState}><span style={styles.bannerError}>{bannerError}</span></div> : null}
+
+          {topBanner ? (
+            <div style={styles.bannerCard}>
+              {topBanner.image_url ? <img src={topBanner.image_url} alt={topBanner.title} style={styles.bannerImage} /> : null}
+              <div style={styles.bannerBody}>
+                <p style={styles.bannerLabel}>Top Banner</p>
+                <h3 style={styles.bannerTitle}>{topBanner.title}</h3>
+                {topBanner.description ? <p style={styles.bannerText}>{topBanner.description}</p> : null}
+                {topBanner.link_url ? (
+                  <a href={topBanner.link_url} target="_blank" rel="noreferrer" style={styles.bannerLink}>
+                    Visit link
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {hasPlayableStreamUrl(match.stream_url) ? (
+            <div style={styles.videoBox}>
+              <div ref={videoRef} />
+            </div>
+          ) : (
+            <div style={styles.videoBox}>
+              <div style={styles.videoPlaceholder}>The live stream is currently unavailable. Please check back soon.</div>
+            </div>
+          )}
+
+          {bottomBanner ? (
+            <div style={styles.bannerCard}>
+              {bottomBanner.image_url ? <img src={bottomBanner.image_url} alt={bottomBanner.title} style={styles.bannerImage} /> : null}
+              <div style={styles.bannerBody}>
+                <p style={styles.bannerLabel}>Bottom Banner</p>
+                <h3 style={styles.bannerTitle}>{bottomBanner.title}</h3>
+                {bottomBanner.description ? <p style={styles.bannerText}>{bottomBanner.description}</p> : null}
+                {bottomBanner.link_url ? (
+                  <a href={bottomBanner.link_url} target="_blank" rel="noreferrer" style={styles.bannerLink}>
+                    Visit link
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           <div style={styles.adBox}>
             <p>Sponsored Advertisement</p>
@@ -286,6 +570,22 @@ export default function Home() {
               Match Time: <b>{matchTime}</b>
             </p>
           </div>
+
+          {sideBanner ? (
+            <div style={styles.bannerCard}>
+              {sideBanner.image_url ? <img src={sideBanner.image_url} alt={sideBanner.title} style={styles.bannerImage} /> : null}
+              <div style={styles.bannerBody}>
+                <p style={styles.bannerLabel}>Side Banner</p>
+                <h3 style={styles.bannerTitle}>{sideBanner.title}</h3>
+                {sideBanner.description ? <p style={styles.bannerText}>{sideBanner.description}</p> : null}
+                {sideBanner.link_url ? (
+                  <a href={sideBanner.link_url} target="_blank" rel="noreferrer" style={styles.bannerLink}>
+                    Visit link
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           <div style={styles.sideAd}>
             <p>ADVERTISEMENT</p>
