@@ -17,12 +17,18 @@ export default function Home() {
     match_time: null,
     is_live: false,
   });
+  const [matchLoading, setMatchLoading] = useState(true);
+  const [matchError, setMatchError] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
   const [banners, setBanners] = useState([]);
   const [bannerLoading, setBannerLoading] = useState(true);
   const [bannerError, setBannerError] = useState("");
   const [popupDismissed, setPopupDismissed] = useState(false);
 
   const fetchLiveMatch = useCallback(async () => {
+    setMatchLoading(true);
+    setMatchError("");
+
     const { data, error } = await supabase
       .from("matches")
       .select("*")
@@ -32,10 +38,12 @@ export default function Home() {
       .maybeSingle();
 
     if (error) {
-      console.log("Load live match error:", error);
+      setMatchError(error.message);
+      setMatchLoading(false);
       return null;
     }
 
+    setMatchLoading(false);
     return data;
   }, []);
 
@@ -59,9 +67,15 @@ export default function Home() {
 
   const refreshLiveMatch = useCallback(async () => {
     const data = await fetchLiveMatch();
-    console.log("Live match refetched");
     applyMatch(data);
   }, [fetchLiveMatch]);
+
+  useEffect(() => {
+    const updateMobile = () => setIsMobile(window.innerWidth <= 900);
+    updateMobile();
+    window.addEventListener("resize", updateMobile);
+    return () => window.removeEventListener("resize", updateMobile);
+  }, []);
 
   const fetchBanners = useCallback(async () => {
     setBannerLoading(true);
@@ -74,7 +88,6 @@ export default function Home() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.log("Load banners error:", error);
       setBannerError(error.message);
       setBannerLoading(false);
       return;
@@ -123,7 +136,6 @@ export default function Home() {
           table: "matches",
         },
         () => {
-          console.log("Realtime event received");
           refreshLiveMatch().then(() => {
             if (!active) return;
           });
@@ -131,7 +143,6 @@ export default function Home() {
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
-          console.log("Realtime connected");
           refreshLiveMatch();
         }
       });
@@ -197,7 +208,6 @@ export default function Home() {
 
     channel.subscribe((status) => {
       if (status === "SUBSCRIBED") {
-        console.log("Banners realtime connected");
         runBannerRefresh();
       }
     });
@@ -210,6 +220,8 @@ export default function Home() {
   }, [fetchBanners]);
 
   useEffect(() => {
+    let retryTimeout = null;
+
     if (!hasPlayableStreamUrl(match.stream_url)) {
       if (playerRef.current) {
         playerRef.current.pause();
@@ -220,7 +232,11 @@ export default function Home() {
       if (videoRef.current) {
         videoRef.current.innerHTML = "";
       }
-      return;
+      return () => {
+        if (retryTimeout) {
+          window.clearTimeout(retryTimeout);
+        }
+      };
     }
 
     if (videoRef.current && !playerRef.current) {
@@ -245,7 +261,7 @@ export default function Home() {
       }));
 
       player.on("error", () => {
-        setTimeout(() => {
+        retryTimeout = window.setTimeout(() => {
           if (match.stream_url && hasPlayableStreamUrl(match.stream_url)) {
             player.src({
               src: match.stream_url,
@@ -257,6 +273,12 @@ export default function Home() {
         }, 5000);
       });
     }
+
+    return () => {
+      if (retryTimeout) {
+        window.clearTimeout(retryTimeout);
+      }
+    };
   }, [hasPlayableStreamUrl, match.stream_url]);
 
   useEffect(() => {
@@ -341,11 +363,20 @@ export default function Home() {
       gridTemplateColumns: "2fr 1fr",
       gap: "20px",
     },
+    mainStack: {
+      maxWidth: "1200px",
+      margin: "0 auto",
+      padding: "20px",
+      display: "grid",
+      gridTemplateColumns: "1fr",
+      gap: "20px",
+    },
     videoBox: {
       backgroundColor: "#000000",
       borderRadius: "12px",
       overflow: "hidden",
       border: "1px solid #1e293b",
+      minHeight: "320px",
     },
     videoPlaceholder: {
       minHeight: "320px",
@@ -370,6 +401,14 @@ export default function Home() {
       flexDirection: "column",
       gap: "16px",
     },
+    bannerCard: {
+      backgroundColor: "#0f172a",
+      borderRadius: "12px",
+      border: "1px solid #1e293b",
+      overflow: "hidden",
+      marginBottom: "16px",
+      boxShadow: "0 8px 24px rgba(2, 6, 23, 0.3)",
+    },
     infoBox: {
       backgroundColor: "#0f172a",
       borderRadius: "12px",
@@ -384,14 +423,6 @@ export default function Home() {
       border: "1px solid #1e293b",
       height: "180px",
       textAlign: "center",
-    },
-    bannerCard: {
-      backgroundColor: "#0f172a",
-      borderRadius: "12px",
-      border: "1px solid #1e293b",
-      overflow: "hidden",
-      marginBottom: "16px",
-      boxShadow: "0 8px 24px rgba(2, 6, 23, 0.3)",
     },
     bannerImage: {
       display: "block",
@@ -527,12 +558,18 @@ export default function Home() {
         </div>
       </header>
 
-      <main style={styles.main}>
+      <main style={isMobile ? styles.mainStack : styles.main}>
         <div>
           {bannerLoading ? (
             <div style={styles.bannerState}>Loading banners...</div>
           ) : null}
           {bannerError ? <div style={styles.bannerState}><span style={styles.bannerError}>{bannerError}</span></div> : null}
+          {matchLoading ? (
+            <div style={styles.bannerState}>Loading live match...</div>
+          ) : null}
+          {matchError ? (
+            <div style={styles.bannerState}><span style={styles.bannerError}>{matchError}</span></div>
+          ) : null}
 
           {topBanner ? (
             <div style={styles.bannerCard}>

@@ -436,6 +436,7 @@ export default function Streams() {
 const styles = {
   shell: {
     display: "flex",
+    flexWrap: "wrap",
     minHeight: "100vh",
     background: "#020617",
     color: "#f8fafc",
@@ -444,6 +445,7 @@ const styles = {
   main: {
     flex: 1,
     minWidth: 0,
+    width: "100%",
     padding: "32px",
   },
   header: {

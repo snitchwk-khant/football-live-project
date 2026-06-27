@@ -406,8 +406,8 @@ export default function Banners() {
 }
 
 const styles = {
-  shell: { display: "flex", minHeight: "100vh", background: "#020617", color: "#f8fafc", textAlign: "left" },
-  main: { flex: 1, minWidth: 0, padding: "32px" },
+  shell: { display: "flex", flexWrap: "wrap", minHeight: "100vh", background: "#020617", color: "#f8fafc", textAlign: "left" },
+  main: { flex: 1, minWidth: 0, width: "100%", padding: "32px" },
   header: { marginBottom: "24px" },
   eyebrow: { margin: 0, color: "#38bdf8", fontSize: "13px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" },
   title: { margin: "4px 0 0", color: "#f8fafc", fontSize: "32px", fontWeight: 700 },

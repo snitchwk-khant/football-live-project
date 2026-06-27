@@ -3,8 +3,10 @@ import { Link } from "react-router-dom";
 export default function Sidebar() {
   return (
     <aside style={{
-      width: "240px",
+      width: "100%",
+      maxWidth: "240px",
       minHeight: "100vh",
+      boxSizing: "border-box",
       background: "#0f172a",
       color: "white",
       padding: "20px",
