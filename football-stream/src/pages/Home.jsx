@@ -153,27 +153,58 @@ export default function Home() {
 
     Promise.resolve().then(runBannerRefresh);
 
-    const channel = supabase
-      .channel("public-banners-homepage")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "banners",
-        },
-        () => {
-          runBannerRefresh();
-        }
-      )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") {
-          console.log("Banners realtime connected");
-        }
-      });
+    const channel = supabase.channel("public-banners-homepage");
+
+    channel.on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "banners",
+      },
+      () => {
+        runBannerRefresh();
+      }
+    );
+
+    channel.on(
+      "postgres_changes",
+      {
+        event: "UPDATE",
+        schema: "public",
+        table: "banners",
+      },
+      () => {
+        runBannerRefresh();
+      }
+    );
+
+    channel.on(
+      "postgres_changes",
+      {
+        event: "DELETE",
+        schema: "public",
+        table: "banners",
+      },
+      () => {
+        runBannerRefresh();
+      }
+    );
+
+    const pollTimer = window.setInterval(() => {
+      runBannerRefresh();
+    }, 3000);
+
+    channel.subscribe((status) => {
+      if (status === "SUBSCRIBED") {
+        console.log("Banners realtime connected");
+        runBannerRefresh();
+      }
+    });
 
     return () => {
       active = false;
+      window.clearInterval(pollTimer);
       supabase.removeChannel(channel);
     };
   }, [fetchBanners]);
