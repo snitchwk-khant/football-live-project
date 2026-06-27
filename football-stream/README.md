@@ -1,16 +1,48 @@
-# React + Vite
+# Football Stream
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Project Overview
 
-Currently, two official plugins are available:
+Football Stream is a React + Vite web app for managing football live content, matches, banners, media, settings, and analytics.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Install
 
-## React Compiler
+```bash
+npm install
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Development
 
-## Expanding the ESLint configuration
+```bash
+npm run dev
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Build
+
+```bash
+npm run build
+```
+
+## Lint
+
+```bash
+npm run lint
+```
+
+## Admin Login
+
+- Admin login URL: /admin/login
+- Default username: admin
+- Default password: admin123
+
+## Dashboard Routes
+
+- /dashboard
+- /dashboard/media
+- /dashboard/settings
+- /dashboard/analytics
+
+## Authentication Note
+
+Current authentication is frontend-only and uses localStorage/sessionStorage for development and testing purposes.
+
+Real production use should connect a backend, database, and authentication provider later.

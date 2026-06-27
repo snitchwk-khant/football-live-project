@@ -1,128 +1,43 @@
-# Football Streaming CMS
+# Football Stream Project
 
 ## Project Overview
 
-A production-ready football live streaming CMS built with:
+Football Stream is a React + Vite admin-driven web app for managing football live content, match updates, media, banners, settings, and analytics.
 
-- React + Vite
-- Supabase
-- Render
-- Cloudflare Stream
-- Custom Domain
+## Completed Sprint Status
 
----
+- ✅ Sprint 1 — Match Management
+- ✅ Sprint 2 — Homepage Live Integration
+- ✅ Sprint 3 — Banner Management
+- ✅ Sprint 4 — Homepage Banner Display
+- ✅ Sprint 5 — Stream Manager
+- ✅ Sprint 5.5 — Stabilization
+- ✅ Sprint 6 — Upcoming Matches + Countdown + Search
+- ✅ Sprint 7 — League Pages + League Filter
+- ✅ Sprint 8 — Media Library
+- ✅ Sprint 9 — Settings CMS
+- ✅ Sprint 10 — Analytics
+- ✅ Sprint 11 — Authentication + Security
 
-# Architecture
+## Current Feature Scope
 
-Frontend
+- Match management
+- Live stream management
+- Homepage banners
+- Media library
+- Upcoming matches and countdown UI
+- League pages and filters
+- Settings CMS
+- Analytics dashboard
+- Admin authentication flow
 
-- React
-- Vite
+## Admin Access
 
-Backend
+- Admin login URL: /admin/login
+- Default username: admin
+- Default password: admin123
 
-- Supabase
+## Notes
 
-Deployment
-
-- Render
-
-Streaming
-
-- Cloudflare Stream
-
----
-
-# Admin Modules
-
-- Dashboard
-- Match Management
-- Stream Management
-- Banner Management
-- Media Library
-- Settings
-
----
-
-# Match Features
-
-- Add Match
-- Edit Match
-- Delete Match
-- Go Live
-- Match Schedule
-- League
-- Poster
-- Stream URL
-
----
-
-# Banner Features
-
-- Top Banner
-- Bottom Banner
-- Left Banner
-- Right Banner
-- Popup Banner
-
----
-
-# Media Library
-
-- Upload Image
-- Delete Image
-- Copy URL
-- Poster
-- Team Logo
-- Sponsor Logo
-
----
-
-# Coding Rules
-
-- Small reusable components.
-- Never refactor working code.
-- One feature at a time.
-- Review every diff before applying.
-- Production quality only.
-
----
-
-# Roadmap
-
-Phase 1
-✔ Website
-
-✔ Deploy
-
-✔ Domain
-
-✔ Supabase
-
-✔ Admin Login
-
-Phase 2
-
-Dashboard
-
-Match CRUD
-
-Go Live
-
-Realtimeျ
-
-Phase 3
-
-Banner Manager
-
-Media Library
-
-Stream Manager
-
-Phase 4
-
-Payments
-
-Analytics
-
-Users
+- Authentication is currently frontend-only using browser storage for development and testing.
+- A real backend, database, and production auth provider should be added later for production use.
