@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Sidebar from "./Sidebar";
 import { readSettings, writeSettings } from "../utils/settings";
+import { changeAdminPassword } from "../utils/auth.js";
 
 const fields = [
   { key: "siteName", label: "Site Name", placeholder: "LIVE FOOTBALL" },
@@ -17,6 +18,13 @@ const fields = [
 export default function Settings() {
   const [form, setForm] = useState(() => readSettings());
   const [savedMessage, setSavedMessage] = useState("");
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -28,6 +36,32 @@ export default function Settings() {
     const saved = writeSettings(form);
     setForm(saved);
     setSavedMessage("Settings saved successfully.");
+  }
+
+  function handlePasswordSubmit(event) {
+    event.preventDefault();
+
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordError("Please fill in all password fields.");
+      setPasswordMessage("");
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError("New password and confirmation do not match.");
+      setPasswordMessage("");
+      return;
+    }
+
+    const result = changeAdminPassword(passwordForm.currentPassword, passwordForm.newPassword);
+    if (result.success) {
+      setPasswordMessage(result.message);
+      setPasswordError("");
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } else {
+      setPasswordError(result.message);
+      setPasswordMessage("");
+    }
   }
 
   return (
@@ -121,6 +155,120 @@ export default function Settings() {
               }}
             >
               Save Settings
+            </button>
+          </div>
+        </form>
+
+        <form
+          onSubmit={handlePasswordSubmit}
+          style={{
+            background: "#0f172a",
+            border: "1px solid #1e293b",
+            borderRadius: "16px",
+            padding: "24px",
+            maxWidth: "860px",
+            display: "grid",
+            gap: "16px",
+            marginTop: "24px",
+          }}
+        >
+          <div>
+            <h2 style={{ margin: "0 0 8px", fontSize: "20px" }}>Change Admin Password</h2>
+            <p style={{ margin: 0, color: "#94a3b8" }}>Update the local dashboard password for future logins.</p>
+          </div>
+
+          {passwordMessage ? (
+            <div
+              style={{
+                padding: "12px 14px",
+                borderRadius: "10px",
+                background: "rgba(16, 185, 129, 0.14)",
+                color: "#6ee7b7",
+                border: "1px solid rgba(16, 185, 129, 0.25)",
+              }}
+            >
+              {passwordMessage}
+            </div>
+          ) : null}
+
+          {passwordError ? (
+            <div
+              style={{
+                padding: "12px 14px",
+                borderRadius: "10px",
+                background: "rgba(248, 113, 113, 0.14)",
+                color: "#fda4af",
+                border: "1px solid rgba(248, 113, 113, 0.2)",
+              }}
+            >
+              {passwordError}
+            </div>
+          ) : null}
+
+          <div style={{ display: "grid", gap: "16px", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+            <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <span style={{ color: "#cbd5e1", fontSize: "14px" }}>Current Password</span>
+              <input
+                type="password"
+                value={passwordForm.currentPassword}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, currentPassword: event.target.value }))}
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: "10px",
+                  border: "1px solid #334155",
+                  background: "#020617",
+                  color: "white",
+                }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <span style={{ color: "#cbd5e1", fontSize: "14px" }}>New Password</span>
+              <input
+                type="password"
+                value={passwordForm.newPassword}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, newPassword: event.target.value }))}
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: "10px",
+                  border: "1px solid #334155",
+                  background: "#020617",
+                  color: "white",
+                }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <span style={{ color: "#cbd5e1", fontSize: "14px" }}>Confirm Password</span>
+              <input
+                type="password"
+                value={passwordForm.confirmPassword}
+                onChange={(event) => setPasswordForm((current) => ({ ...current, confirmPassword: event.target.value }))}
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: "10px",
+                  border: "1px solid #334155",
+                  background: "#020617",
+                  color: "white",
+                }}
+              />
+            </label>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
+            <button
+              type="submit"
+              style={{
+                background: "#10b981",
+                color: "white",
+                border: "none",
+                borderRadius: "10px",
+                padding: "12px 18px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Update Password
             </button>
           </div>
         </form>
