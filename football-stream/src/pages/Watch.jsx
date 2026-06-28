@@ -274,7 +274,7 @@ export default function WatchPage() {
             <p style={styles.value}>{match ? formatMatchTime(match.match_time) : "—"}</p>
           </div>
           <div style={styles.infoCard}>
-            <Link to="/matches" style={styles.button}>Browse all matches</Link>
+            <Link to="/matches" style={styles.button}>View all matches</Link>
           </div>
         </aside>
       </main>

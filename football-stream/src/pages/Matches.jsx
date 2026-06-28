@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import { readSettings } from "../utils/settings";
-import { formatMatchTime, getMatchPoster, getMatchTitle, normalizeMatchStatus, sortMatchesForPublic } from "../utils/matches";
+import { formatMatchTime, getMatchPoster, getMatchTitle, hasPlayableStreamUrl, normalizeMatchStatus, sortMatchesForPublic } from "../utils/matches";
 import { sanitizeImageUrl } from "../utils/security";
 
 const STATUS_LABELS = {
@@ -12,7 +12,6 @@ const STATUS_LABELS = {
 };
 
 export default function MatchesPage() {
-  const navigate = useNavigate();
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -86,9 +85,116 @@ export default function MatchesPage() {
     });
   }, [matches, searchQuery, selectedLeague, selectedStatus]);
 
-  const handleOpenMatch = (match) => {
-    navigate(`/watch/${match.id}`);
+  const getPrimaryAction = (match) => {
+    const status = normalizeMatchStatus(match);
+    const isPlayable = status === "live" || hasPlayableStreamUrl(match?.stream_url);
+
+    return {
+      label: isPlayable ? "Watch Live" : "View Match",
+      to: isPlayable ? `/watch/${match.id}` : `/matches/${match.id}`,
+    };
   };
+
+  const pageStyles = `
+    .matches-page-container,
+    .matches-page-header,
+    .matches-page-inner,
+    .matches-page-main {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .matches-page-controls {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr) minmax(180px, 1fr);
+      gap: 12px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      margin-top: 8px;
+    }
+
+    .matches-page-input,
+    .matches-page-select {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+
+    .matches-page-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    .matches-page-card {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    .matches-page-image {
+      width: 100%;
+      max-width: 100%;
+      height: 162px;
+      object-fit: cover;
+      display: block;
+      flex-shrink: 0;
+      background-color: #111827;
+    }
+
+    .matches-page-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: auto;
+      padding-top: 8px;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+
+    .matches-page-primary-button,
+    .matches-page-secondary-button {
+      width: auto;
+      max-width: 100%;
+      box-sizing: border-box;
+      white-space: normal;
+    }
+
+    @media (max-width: 900px) {
+      .matches-page-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 640px) {
+      .matches-page-controls {
+        grid-template-columns: 1fr;
+      }
+
+      .matches-page-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .matches-page-actions {
+        flex-direction: column;
+      }
+
+      .matches-page-primary-button,
+      .matches-page-secondary-button {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  `;
 
   const styles = {
     container: {
@@ -96,18 +202,26 @@ export default function MatchesPage() {
       backgroundColor: "#020617",
       color: "#f8fafc",
       fontFamily: "sans-serif",
+      width: "100%",
+      maxWidth: "100%",
+      overflowX: "hidden",
+      boxSizing: "border-box",
     },
     header: {
       backgroundColor: "#0f172a",
-      padding: "24px 20px",
+      padding: "24px clamp(16px, 4vw, 24px)",
       borderBottom: "1px solid #1e293b",
+      width: "100%",
+      boxSizing: "border-box",
     },
     inner: {
       maxWidth: "1180px",
+      width: "100%",
       margin: "0 auto",
       display: "flex",
       flexDirection: "column",
       gap: "12px",
+      boxSizing: "border-box",
     },
     title: {
       margin: 0,
@@ -125,6 +239,9 @@ export default function MatchesPage() {
       gap: "12px",
       flexWrap: "wrap",
       marginTop: "8px",
+      width: "100%",
+      maxWidth: "100%",
+      boxSizing: "border-box",
     },
     input: {
       flex: "1 1 220px",
@@ -134,6 +251,9 @@ export default function MatchesPage() {
       color: "#f8fafc",
       padding: "10px 12px",
       outline: "none",
+      width: "100%",
+      maxWidth: "100%",
+      boxSizing: "border-box",
     },
     select: {
       backgroundColor: "#020617",
@@ -143,17 +263,24 @@ export default function MatchesPage() {
       padding: "10px 12px",
       outline: "none",
       minWidth: "160px",
+      width: "100%",
+      maxWidth: "100%",
+      boxSizing: "border-box",
     },
     main: {
       maxWidth: "1180px",
-      margin: "0 auto",
-      padding: "24px 20px 40px",
       width: "100%",
+      margin: "0 auto",
+      padding: "24px clamp(16px, 4vw, 24px) 40px",
+      boxSizing: "border-box",
     },
     grid: {
       display: "grid",
       gap: "16px",
-      gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+      gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))",
+      maxWidth: "100%",
+      width: "100%",
+      minWidth: 0,
     },
     card: {
       backgroundColor: "#0f172a",
@@ -164,12 +291,19 @@ export default function MatchesPage() {
       flexDirection: "column",
       minHeight: "100%",
       cursor: "pointer",
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      boxSizing: "border-box",
     },
     image: {
       width: "100%",
+      maxWidth: "100%",
       height: "162px",
       objectFit: "cover",
+      display: "block",
       backgroundColor: "#111827",
+      flexShrink: 0,
     },
     body: {
       padding: "16px",
@@ -177,6 +311,8 @@ export default function MatchesPage() {
       flexDirection: "column",
       gap: "8px",
       flex: 1,
+      minWidth: 0,
+      boxSizing: "border-box",
     },
     tag: {
       alignSelf: "flex-start",
@@ -205,21 +341,15 @@ export default function MatchesPage() {
       gap: "10px",
       flexWrap: "wrap",
       paddingTop: "8px",
+      width: "100%",
+      maxWidth: "100%",
+      boxSizing: "border-box",
     },
     primaryButton: {
       border: 0,
       borderRadius: "8px",
       backgroundColor: "#10b981",
       color: "#052e16",
-      padding: "10px 12px",
-      fontWeight: 700,
-      cursor: "pointer",
-    },
-    secondaryButton: {
-      border: "1px solid #334155",
-      borderRadius: "8px",
-      backgroundColor: "transparent",
-      color: "#f8fafc",
       padding: "10px 12px",
       fontWeight: 700,
       cursor: "pointer",
@@ -239,9 +369,10 @@ export default function MatchesPage() {
   };
 
   return (
-    <div style={styles.container}>
-      <header style={styles.header}>
-        <div style={styles.inner}>
+    <div style={styles.container} className="matches-page-container">
+      <style>{pageStyles}</style>
+      <header style={styles.header} className="matches-page-header">
+        <div style={styles.inner} className="matches-page-inner">
           <Link to="/" style={{ color: "#34d399", fontWeight: 700, textDecoration: "none" }}>
             ← Back to home
           </Link>
@@ -249,16 +380,17 @@ export default function MatchesPage() {
           <p style={styles.subtitle}>
             Browse the latest football fixtures, see their status, and jump straight into the watch page when a stream is available.
           </p>
-          <div style={styles.controls}>
+          <div style={styles.controls} className="matches-page-controls">
             <input
               type="text"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Search teams or league"
               style={styles.input}
+              className="matches-page-input"
               aria-label="Search matches"
             />
-            <select value={selectedLeague} onChange={(event) => setSelectedLeague(event.target.value)} style={styles.select} aria-label="Filter by league">
+            <select value={selectedLeague} onChange={(event) => setSelectedLeague(event.target.value)} style={styles.select} className="matches-page-select" aria-label="Filter by league">
               <option value="all">All Leagues</option>
               {leagueOptions.map((league) => (
                 <option key={league} value={league}>
@@ -266,7 +398,7 @@ export default function MatchesPage() {
                 </option>
               ))}
             </select>
-            <select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)} style={styles.select} aria-label="Filter by status">
+            <select value={selectedStatus} onChange={(event) => setSelectedStatus(event.target.value)} style={styles.select} className="matches-page-select" aria-label="Filter by status">
               <option value="all">All Statuses</option>
               <option value="live">Live</option>
               <option value="upcoming">Upcoming</option>
@@ -276,7 +408,7 @@ export default function MatchesPage() {
         </div>
       </header>
 
-      <main style={styles.main}>
+      <main style={styles.main} className="matches-page-main">
         {loading ? <div style={styles.state}>Loading matches…</div> : null}
         {error ? <div style={styles.state} role="alert">{error}</div> : null}
 
@@ -285,19 +417,15 @@ export default function MatchesPage() {
         ) : null}
 
         {!loading && !error && filteredMatches.length > 0 ? (
-          <div style={styles.grid}>
+          <div style={styles.grid} className="matches-page-grid">
             {filteredMatches.map((match) => {
               const status = normalizeMatchStatus(match);
               const poster = getMatchPoster(match);
               const matchTitle = getMatchTitle(match);
+              const action = getPrimaryAction(match);
               return (
-                <article key={match.id} style={styles.card} onClick={() => handleOpenMatch(match)} onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    handleOpenMatch(match);
-                  }
-                }} tabIndex={0} role="button">
-                  {poster ? <img src={sanitizeImageUrl(poster)} alt={matchTitle} style={styles.image} /> : null}
+                <article key={match.id} style={styles.card} className="matches-page-card">
+                  {poster ? <img src={sanitizeImageUrl(poster)} alt={matchTitle} style={styles.image} className="matches-page-image" /> : null}
                   <div style={styles.body}>
                     <span style={{ ...styles.tag, backgroundColor: status === "live" ? "rgba(16,185,129,0.16)" : status === "ended" ? "rgba(248,113,113,0.16)" : "rgba(56,189,248,0.16)", color: status === "live" ? "#34d399" : status === "ended" ? "#f87171" : "#38bdf8" }}>
                       {STATUS_LABELS[status]}
@@ -306,12 +434,9 @@ export default function MatchesPage() {
                     <p style={styles.meta}>{match.home_team || "Home team"} vs {match.away_team || "Away team"}</p>
                     <p style={styles.meta}>{match.league || "League not set"}</p>
                     <p style={styles.meta}>{formatMatchTime(match.match_time)}</p>
-                    <div style={styles.actions}>
-                      <button type="button" onClick={() => handleOpenMatch(match)} style={styles.primaryButton}>
-                        Watch
-                      </button>
-                      <Link to={`/watch/${match.id}`} style={styles.secondaryButton}>
-                        Open page
+                    <div style={styles.actions} className="matches-page-actions">
+                      <Link to={action.to} style={styles.primaryButton} className="matches-page-primary-button">
+                        {action.label}
                       </Link>
                     </div>
                   </div>

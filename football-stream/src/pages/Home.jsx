@@ -593,6 +593,8 @@ export default function Home() {
       display: "grid",
       gap: "12px",
       gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+      maxWidth: "100%",
+      overflowX: "hidden",
     },
     publicMatchItem: {
       backgroundColor: "#111827",
@@ -629,6 +631,8 @@ export default function Home() {
       display: "grid",
       gap: "12px",
       gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+      maxWidth: "100%",
+      overflowX: "hidden",
     },
     upcomingItem: {
       backgroundColor: "#111827",
