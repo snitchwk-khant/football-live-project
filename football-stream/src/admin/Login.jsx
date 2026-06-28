@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAdminSetupMessage, getAdminUsername, isAdminAuthenticated, loginAdmin } from "../utils/auth.js";
+import { getAdminSetupMessage, isAdminAuthenticated, loginAdmin } from "../utils/auth.js";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -189,10 +189,7 @@ export default function Login() {
         </form>
 
         <p style={{ margin: "16px 0 0", color: "#94a3b8", fontSize: "14px" }}>
-          Expected username: {getAdminUsername() || "(set VITE_ADMIN_USERNAME)"}
-        </p>
-        <p style={{ margin: "4px 0 0", color: "#94a3b8", fontSize: "14px" }}>
-          The login uses a pre-provisioned TOTP secret from VITE_ADMIN_TOTP_SECRET and clears session state on logout.
+          Use the admin credentials configured for this deployment. The session is cleared on logout.
         </p>
       </div>
     </div>

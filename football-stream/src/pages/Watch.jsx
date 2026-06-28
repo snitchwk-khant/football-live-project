@@ -16,6 +16,7 @@ export default function WatchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [settings, setSettings] = useState(readSettings());
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const handleSettingsUpdate = () => setSettings(readSettings());
@@ -24,11 +25,24 @@ export default function WatchPage() {
   }, []);
 
   useEffect(() => {
+    const updateMobile = () => setIsMobile(window.innerWidth <= 900);
+    updateMobile();
+    window.addEventListener("resize", updateMobile);
+    return () => window.removeEventListener("resize", updateMobile);
+  }, []);
+
+  useEffect(() => {
     let active = true;
 
     async function loadMatch() {
       setLoading(true);
       setError("");
+
+      if (!matchId || !/^\d+$/.test(`${matchId}`)) {
+        setError("This match could not be found.");
+        setLoading(false);
+        return;
+      }
 
       const { data, error: fetchError } = await supabase
         .from("matches")
@@ -131,7 +145,7 @@ export default function WatchPage() {
     header: {
       backgroundColor: "#0f172a",
       borderBottom: "1px solid #1e293b",
-      padding: "24px 20px",
+      padding: isMobile ? "18px 14px" : "24px 20px",
     },
     inner: {
       maxWidth: "1160px",
@@ -142,7 +156,7 @@ export default function WatchPage() {
     },
     title: {
       margin: 0,
-      fontSize: "30px",
+      fontSize: isMobile ? "24px" : "30px",
       fontWeight: 700,
     },
     subtitle: {
@@ -154,9 +168,9 @@ export default function WatchPage() {
     main: {
       maxWidth: "1160px",
       margin: "0 auto",
-      padding: "24px 20px 40px",
+      padding: isMobile ? "16px 14px 32px" : "24px 20px 40px",
       display: "grid",
-      gridTemplateColumns: "1.4fr 0.8fr",
+      gridTemplateColumns: isMobile ? "1fr" : "1.4fr 0.8fr",
       gap: "20px",
     },
     playerCard: {
@@ -166,7 +180,7 @@ export default function WatchPage() {
       overflow: "hidden",
     },
     playerBox: {
-      minHeight: "360px",
+      minHeight: isMobile ? "280px" : "360px",
       backgroundColor: "#000000",
       display: "flex",
       justifyContent: "center",

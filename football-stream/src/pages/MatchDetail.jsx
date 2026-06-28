@@ -11,6 +11,7 @@ export default function MatchDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [settings, setSettings] = useState(readSettings());
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const handleSettingsUpdate = () => setSettings(readSettings());
@@ -19,11 +20,24 @@ export default function MatchDetailPage() {
   }, []);
 
   useEffect(() => {
+    const updateMobile = () => setIsMobile(window.innerWidth <= 900);
+    updateMobile();
+    window.addEventListener("resize", updateMobile);
+    return () => window.removeEventListener("resize", updateMobile);
+  }, []);
+
+  useEffect(() => {
     let active = true;
 
     async function loadMatch() {
       setLoading(true);
       setError("");
+
+      if (!matchId || !/^\d+$/.test(`${matchId}`)) {
+        setError("This match could not be found.");
+        setLoading(false);
+        return;
+      }
 
       const { data, error: fetchError } = await supabase
         .from("matches")
@@ -89,7 +103,7 @@ export default function MatchDetailPage() {
     header: {
       backgroundColor: "#0f172a",
       borderBottom: "1px solid #1e293b",
-      padding: "24px clamp(16px, 4vw, 24px)",
+      padding: isMobile ? "18px 14px" : "24px clamp(16px, 4vw, 24px)",
       width: "100%",
       boxSizing: "border-box",
     },
@@ -104,7 +118,7 @@ export default function MatchDetailPage() {
     },
     title: {
       margin: 0,
-      fontSize: "30px",
+      fontSize: isMobile ? "24px" : "30px",
       fontWeight: 700,
     },
     subtitle: {
@@ -117,11 +131,11 @@ export default function MatchDetailPage() {
       maxWidth: "1120px",
       width: "100%",
       margin: "0 auto",
-      padding: "24px clamp(16px, 4vw, 24px) 40px",
+      padding: isMobile ? "16px 14px 32px" : "24px clamp(16px, 4vw, 24px) 40px",
       boxSizing: "border-box",
       display: "grid",
       gap: "20px",
-      gridTemplateColumns: "minmax(0, 1.15fr) minmax(280px, 0.85fr)",
+      gridTemplateColumns: isMobile ? "1fr" : "minmax(0, 1.15fr) minmax(280px, 0.85fr)",
     },
     card: {
       backgroundColor: "#0f172a",

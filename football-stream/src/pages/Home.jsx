@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
 import { supabase } from "../services/supabase";
@@ -38,6 +38,7 @@ export default function Home() {
   const [selectedLeague, setSelectedLeague] = useState("all");
   const [countdown, setCountdown] = useState(null);
   const [settings, setSettings] = useState(readSettings());
+  const navigate = useNavigate();
 
   const fetchLiveMatch = useCallback(async () => {
     setMatchLoading(true);
@@ -443,6 +444,16 @@ export default function Home() {
   const bottomBanner = banners.find((banner) => banner.position === "bottom");
   const sideBanner = banners.find((banner) => banner.position === "side");
   const popupBanner = banners.find((banner) => banner.position === "popup");
+
+  const getMatchAction = (item) => {
+    const status = normalizeMatchStatus(item);
+    const isPlayable = status === "live" || hasPlayableStreamUrl(item?.stream_url);
+
+    return {
+      label: isPlayable ? "Watch" : "View",
+      to: isPlayable ? `/watch/${item.id}` : `/matches/${item.id}`,
+    };
+  };
 
   const styles = {
     container: {
@@ -936,11 +947,12 @@ export default function Home() {
                 {publicMatches.map((item) => {
                   const status = normalizeMatchStatus(item);
                   const poster = getMatchPoster(item);
+                  const action = getMatchAction(item);
                   return (
-                    <div key={item.id} style={styles.publicMatchItem} onClick={() => window.location.assign(`/watch/${item.id}`)} onKeyDown={(event) => {
+                    <div key={item.id} style={styles.publicMatchItem} onClick={() => navigate(action.to)} onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        window.location.assign(`/watch/${item.id}`);
+                        navigate(action.to);
                       }
                     }} tabIndex={0} role="button">
                       {poster ? <img src={sanitizeImageUrl(poster)} alt={getMatchTitle(item)} style={styles.publicMatchPoster} /> : null}
@@ -951,8 +963,8 @@ export default function Home() {
                       <p style={{ ...styles.matchMeta, fontWeight: 700, color: status === "live" ? "#34d399" : status === "ended" ? "#f87171" : "#38bdf8" }}>
                         {status === "live" ? "Live" : status === "ended" ? "Ended" : "Upcoming"}
                       </p>
-                      <Link to={`/watch/${item.id}`} style={styles.publicActionButton}>
-                        Watch
+                      <Link to={action.to} style={styles.publicActionButton}>
+                        {action.label}
                       </Link>
                     </div>
                   );
