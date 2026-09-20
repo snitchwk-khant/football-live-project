@@ -5,7 +5,6 @@ import { getAdminSetupMessage, isAdminAuthenticated, loginAdmin } from "../utils
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [totpCode, setTotpCode] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -25,11 +24,6 @@ export default function Login() {
       return;
     }
 
-    if (!/^\d{6}$/.test(totpCode.trim())) {
-      setError("Enter the 6-digit verification code from your authenticator app.");
-      return;
-    }
-
     if (setupMessage) {
       setError(setupMessage);
       return;
@@ -38,7 +32,7 @@ export default function Login() {
     setIsSubmitting(true);
     setError("");
 
-    const result = await loginAdmin(username.trim(), password, totpCode.trim());
+    const result = await loginAdmin(username.trim(), password);
 
     if (result.success) {
       navigate("/dashboard", { replace: true });
@@ -74,7 +68,7 @@ export default function Login() {
       >
         <h2 style={{ margin: "0 0 8px", fontSize: "24px" }}>Admin Login</h2>
         <p style={{ margin: "0 0 20px", color: "#94a3b8" }}>
-          Sign in with your username, password, and the 6-digit code from your authenticator app.
+          Sign in with your username and password.
         </p>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -113,29 +107,6 @@ export default function Login() {
               background: "#020617",
               color: "white",
               boxSizing: "border-box",
-            }}
-          />
-
-          <input
-            type="text"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            placeholder="123456"
-            value={totpCode}
-            onChange={(event) => {
-              setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6));
-              if (error) setError("");
-            }}
-            style={{
-              width: "100%",
-              padding: "12px 14px",
-              borderRadius: "10px",
-              border: "1px solid #334155",
-              background: "#020617",
-              color: "white",
-              boxSizing: "border-box",
-              letterSpacing: "0.2em",
-              textAlign: "center",
             }}
           />
 
