@@ -70,6 +70,28 @@ function setAttemptState(nextState) {
 
 }
 
+export async function getAdminEnvDiagnostics() {
+  async function describe(value) {
+    const digest = await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(value ?? ""),
+    );
+    return {
+      exists: value !== undefined,
+      length: (value ?? "").length,
+      fingerprint: Array.from(new Uint8Array(digest))
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("")
+        .slice(0, 8),
+    };
+  }
+
+  return {
+    VITE_ADMIN_USERNAME: await describe(import.meta.env.VITE_ADMIN_USERNAME),
+    VITE_ADMIN_PASSWORD: await describe(import.meta.env.VITE_ADMIN_PASSWORD),
+  };
+}
+
 export function getAdminSetupMessage() {
   const { configured, missingKeys } = getEnvCredentials();
 
