@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAdminEnvDiagnostics, getAdminSetupMessage, isAdminAuthenticated, loginAdmin } from "../utils/auth.js";
+import { getAdminSetupMessage, isAdminAuthenticated, loginAdmin } from "../utils/auth.js";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [diagnostics, setDiagnostics] = useState(null);
-  const [diagnosticsStatus, setDiagnosticsStatus] = useState("");
   const navigate = useNavigate();
   const setupMessage = getAdminSetupMessage();
 
@@ -43,17 +41,6 @@ export default function Login() {
 
     setError(result.message || "Unable to sign in.");
     setIsSubmitting(false);
-  }
-
-  async function handleDiagnostics() {
-    setDiagnostics(null);
-    setDiagnosticsStatus("Checking...");
-    try {
-      setDiagnostics(await getAdminEnvDiagnostics());
-      setDiagnosticsStatus("");
-    } catch {
-      setDiagnosticsStatus("Diagnostics unavailable.");
-    }
   }
 
   return (
@@ -171,24 +158,6 @@ export default function Login() {
             {isSubmitting ? "Signing in..." : "Sign in"}
           </button>
         </form>
-
-        <div style={{ marginTop: "16px" }}>
-          <button
-            type="button"
-            onClick={handleDiagnostics}
-            disabled={diagnosticsStatus === "Checking..."}
-          >
-            Check build environment (temporary)
-          </button>
-          <div role="status">
-            {diagnosticsStatus}
-            {diagnostics && (
-              <pre style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-                {JSON.stringify(diagnostics, null, 2)}
-              </pre>
-            )}
-          </div>
-        </div>
 
         <p style={{ margin: "16px 0 0", color: "#94a3b8", fontSize: "14px" }}>
           Use the admin credentials configured for this deployment. The session is cleared on logout.
