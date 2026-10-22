@@ -64,6 +64,18 @@ export default function Matches() {
     setSaving(true);
     setError("");
 
+    let matchTime = null;
+    if (formValues.match_time) {
+      const date = new Date(formValues.match_time);
+      if (Number.isNaN(date.getTime())) {
+        const message = "Please enter a valid match date and time.";
+        setError(message);
+        setSaving(false);
+        return { ok: false, error: message };
+      }
+      matchTime = date.toISOString();
+    }
+
     const payload = {
       title: sanitizePlainText(`${formValues.home_team.trim()} vs ${formValues.away_team.trim()}`, { maxLength: 160 }),
       stream_url: sanitizeStreamUrl(formValues.stream_url),
@@ -72,7 +84,7 @@ export default function Matches() {
       away_team: sanitizePlainText(formValues.away_team, { maxLength: 80 }),
       league: sanitizePlainText(formValues.league, { maxLength: 80 }) || null,
       poster: sanitizeImageUrl(formValues.poster) || null,
-      match_time: formValues.match_time || null,
+      match_time: matchTime,
       is_live: Boolean(formValues.is_live),
     };
 
