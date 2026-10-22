@@ -13,16 +13,8 @@ import Banners from "./admin/Banners.jsx";
 import Settings from "./admin/Settings.jsx";
 import Media from "./admin/Media/index.jsx";
 import Analytics from "./admin/Analytics.jsx";
-import { isAdminAuthenticated } from "./utils/auth.js";
+import AdminRoute from "./auth/AdminRoute";
 import { recordViewerVisit } from "./utils/viewerAnalytics.js";
-
-function ProtectedRoute({ children }) {
-  return isAdminAuthenticated() ? children : <Navigate to="/admin/login" replace />;
-}
-
-function AdminFallbackRoute() {
-  return isAdminAuthenticated() ? <Navigate to="/dashboard" replace /> : <Login />;
-}
 
 function App() {
   const location = useLocation();
@@ -39,14 +31,14 @@ function App() {
       <Route path="/watch/:matchId" element={<WatchPage />} />
       <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
       <Route path="/admin/login" element={<Login />} />
-      <Route path="/dashboard/admin" element={<AdminFallbackRoute />} />
-      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-      <Route path="/dashboard/matches" element={<ProtectedRoute><Matches /></ProtectedRoute>} />
-      <Route path="/dashboard/streams" element={<ProtectedRoute><Streams /></ProtectedRoute>} />
-      <Route path="/dashboard/banners" element={<ProtectedRoute><Banners /></ProtectedRoute>} />
-      <Route path="/dashboard/media" element={<ProtectedRoute><Media /></ProtectedRoute>} />
-      <Route path="/dashboard/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
-      <Route path="/dashboard/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+      <Route path="/dashboard/admin" element={<Login />} />
+      <Route path="/dashboard" element={<AdminRoute key={location.pathname}><Dashboard /></AdminRoute>} />
+      <Route path="/dashboard/matches" element={<AdminRoute key={location.pathname}><Matches /></AdminRoute>} />
+      <Route path="/dashboard/streams" element={<AdminRoute key={location.pathname}><Streams /></AdminRoute>} />
+      <Route path="/dashboard/banners" element={<AdminRoute key={location.pathname}><Banners /></AdminRoute>} />
+      <Route path="/dashboard/media" element={<AdminRoute key={location.pathname}><Media /></AdminRoute>} />
+      <Route path="/dashboard/analytics" element={<AdminRoute key={location.pathname}><Analytics /></AdminRoute>} />
+      <Route path="/dashboard/settings" element={<AdminRoute key={location.pathname}><Settings /></AdminRoute>} />
     </Routes>
   );
 }

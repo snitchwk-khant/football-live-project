@@ -1,47 +1,56 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAdminSetupMessage, isAdminAuthenticated, loginAdmin } from "../utils/auth.js";
+import { signInAdmin, signOutAdmin } from "../auth/adminAuth";
+import useAdminAccess from "../auth/useAdminAccess";
+import AdminMfa from "../auth/AdminMfa";
 
 export default function Login() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const inFlight = useRef(false);
+  const access = useAdminAccess();
   const navigate = useNavigate();
-  const setupMessage = getAdminSetupMessage();
 
   useEffect(() => {
-    if (isAdminAuthenticated()) {
-      navigate("/dashboard", { replace: true });
-    }
-  }, [navigate]);
+    if (!access.loading && access.stage === "ready") navigate("/dashboard", { replace: true });
+  }, [access.loading, access.stage, navigate]);
 
   async function handleSubmit(event) {
     event.preventDefault();
-
-    if (!username.trim() || !password.trim()) {
-      setError("Please enter both username and password.");
-      return;
-    }
-
-    if (setupMessage) {
-      setError(setupMessage);
-      return;
-    }
-
-    setIsSubmitting(true);
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
     setError("");
-
-    const result = await loginAdmin(username.trim(), password);
-
-    if (result.success) {
-      navigate("/dashboard", { replace: true });
-      return;
+    try {
+      await signInAdmin(email, password);
+      await access.refresh();
+    } catch {
+      setError("Unable to sign in with this account. Check your credentials and admin access, then retry.");
+    } finally {
+      setPassword("");
+      inFlight.current = false;
+      setBusy(false);
     }
-
-    setError(result.message || "Unable to sign in.");
-    setIsSubmitting(false);
   }
+
+  async function handleSignOut() {
+    setBusy(true);
+    setError("");
+    try {
+      await signOutAdmin();
+      await access.refresh();
+    } catch {
+      setError("Unable to finish signing out. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const disabled = busy || mfaBusy || access.loading;
+  const needsMfa = access.stage === "enroll" || access.stage === "challenge";
 
   return (
     <div
@@ -67,102 +76,38 @@ export default function Login() {
         }}
       >
         <h2 style={{ margin: "0 0 8px", fontSize: "24px" }}>Admin Login</h2>
-        <p style={{ margin: "0 0 20px", color: "#94a3b8" }}>
-          Sign in with your username and password.
-        </p>
-
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(event) => {
-              setUsername(event.target.value);
-              if (error) setError("");
-            }}
-            style={{
-              width: "100%",
-              padding: "12px 14px",
-              borderRadius: "10px",
-              border: "1px solid #334155",
-              background: "#020617",
-              color: "white",
-              boxSizing: "border-box",
-            }}
-          />
-
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(event) => {
-              setPassword(event.target.value);
-              if (error) setError("");
-            }}
-            style={{
-              width: "100%",
-              padding: "12px 14px",
-              borderRadius: "10px",
-              border: "1px solid #334155",
-              background: "#020617",
-              color: "white",
-              boxSizing: "border-box",
-            }}
-          />
-
-          {setupMessage ? (
-            <div
-              style={{
-                padding: "10px 12px",
-                borderRadius: "10px",
-                background: "rgba(56, 189, 248, 0.14)",
-                color: "#bae6fd",
-                border: "1px solid rgba(56, 189, 248, 0.2)",
-                fontSize: "14px",
-              }}
-              role="status"
-            >
-              {setupMessage}
-            </div>
-          ) : null}
-
-          {error ? (
-            <div
-              style={{
-                padding: "10px 12px",
-                borderRadius: "10px",
-                background: "rgba(248, 113, 113, 0.14)",
-                color: "#fda4af",
-                border: "1px solid rgba(248, 113, 113, 0.2)",
-                fontSize: "14px",
-              }}
-            >
-              {error}
-            </div>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: "10px",
-              background: isSubmitting ? "#475569" : "#10b981",
-              color: "white",
-              border: "none",
-              fontWeight: 700,
-              cursor: isSubmitting ? "wait" : "pointer",
-            }}
-          >
-            {isSubmitting ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        <p style={{ margin: "16px 0 0", color: "#94a3b8", fontSize: "14px" }}>
-          Use the admin credentials configured for this deployment. The session is cleared on logout.
-        </p>
+        {access.loading && <p role="status">Checking admin access…</p>}
+        {needsMfa ? (
+          <AdminMfa key={access.userId} access={{ ...access, loading: busy || access.loading }} onBusy={setMfaBusy} inputStyle={inputStyle} buttonStyle={buttonStyle} />
+        ) : access.stage !== "ready" && (
+          <>
+            <p style={{ margin: "0 0 20px", color: "#94a3b8" }}>Sign in with your admin email and password.</p>
+            <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <input type="email" aria-label="Email" placeholder="Email" autoComplete="username" required value={email} disabled={disabled}
+                onChange={(event) => { setEmail(event.target.value); setError(""); }} style={inputStyle} />
+              <input type="password" aria-label="Password" placeholder="Password" autoComplete="current-password" required value={password} disabled={disabled}
+                onChange={(event) => { setPassword(event.target.value); setError(""); }} style={inputStyle} />
+              <button type="submit" disabled={disabled} style={{ ...buttonStyle, background: disabled ? "#475569" : "#10b981", cursor: disabled ? "wait" : "pointer" }}>
+                {busy ? "Signing in…" : "Sign in"}
+              </button>
+            </form>
+          </>
+        )}
+        {(error || access.error) && <p role="alert" style={{ color: "#fda4af" }}>{error || access.error}</p>}
+        {(needsMfa || access.error) && (
+          <button type="button" onClick={handleSignOut} disabled={disabled} style={{ ...buttonStyle, marginTop: "16px", background: "#334155" }}>Sign out</button>
+        )}
+        <p style={{ margin: "16px 0 0", color: "#94a3b8", fontSize: "14px" }}>Admin access requires authenticator verification.</p>
       </div>
     </div>
   );
 }
+
+const inputStyle = {
+  width: "100%", padding: "12px 14px", borderRadius: "10px", border: "1px solid #334155",
+  background: "#020617", color: "white", boxSizing: "border-box",
+};
+const buttonStyle = {
+  width: "100%", padding: "12px", borderRadius: "10px", background: "#10b981",
+  color: "white", border: "none", fontWeight: 700, cursor: "pointer",
+};

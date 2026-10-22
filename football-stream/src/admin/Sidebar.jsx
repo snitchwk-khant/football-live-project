@@ -1,12 +1,22 @@
 import { Link, useNavigate } from "react-router-dom";
-import { logoutAdmin } from "../utils/auth.js";
+import { useState } from "react";
+import { signOutAdmin } from "../auth/adminAuth";
 
 export default function Sidebar() {
   const navigate = useNavigate();
+  const [signingOut, setSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
 
-  function handleLogout() {
-    logoutAdmin();
-    navigate("/admin/login", { replace: true });
+  async function handleLogout() {
+    setSigningOut(true);
+    setLogoutError("");
+    try {
+      await signOutAdmin();
+      navigate("/admin/login", { replace: true });
+    } catch {
+      setLogoutError("Unable to finish signing out. Please try again.");
+      setSigningOut(false);
+    }
   }
 
   return (
@@ -53,9 +63,11 @@ export default function Sidebar() {
         </nav>
       </div>
 
+      {logoutError && <p role="alert" style={{ color: "#fda4af" }}>{logoutError}</p>}
       <button
         type="button"
         onClick={handleLogout}
+        disabled={signingOut}
         style={{
           marginTop: "20px",
           padding: "12px 14px",
@@ -67,7 +79,7 @@ export default function Sidebar() {
           cursor: "pointer",
         }}
       >
-        Logout
+        {signingOut ? "Signing out…" : "Logout"}
       </button>
     </aside>
   );
