@@ -68,20 +68,18 @@ SPA fallback is included so refreshes work correctly on hosting platforms.
 
 ## Admin Login
 
-- Admin login URL: /admin/login
-- Default username: admin
-- Default password: admin123
+Admin login URL: `/admin/login`.
+
+Admin access uses this flow:
+
+Supabase email/password → trusted admin membership check → TOTP MFA → confirmed AAL2 → protected Admin Dashboard.
+
+Only authorized admin accounts may access the dashboard. Password authentication alone does not grant admin access. New authenticator setup must be verified before access is granted; returning users complete an authenticator challenge.
+
+Protected routes recheck the Supabase session, admin membership, and AAL2. Logout signs out through Supabase Auth.
 
 ## Authentication and Data Note
 
-Current authentication is frontend-only and uses localStorage/sessionStorage for development and testing purposes.
+Supabase manages authentication and MFA. Database RLS permits public reads of matches, streams, and banners; inserts, updates, and deletes require an authenticated admin with AAL2.
 
-This means:
-
-- the app can run as a frontend-only demo locally
-- admin access is not production-safe without a real backend
-- production database, auth, and persistence should be added later
-
-## Limitation
-
-This frontend-only setup is suitable for local development and simple static hosting, but it is not a full production backend solution yet.
+Website settings and viewer tracking still use browser-local storage. They are separate from admin authentication.

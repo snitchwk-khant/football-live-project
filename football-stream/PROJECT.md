@@ -33,11 +33,14 @@ Football Stream is a React + Vite admin-driven web app for managing football liv
 
 ## Admin Access
 
-- Admin login URL: /admin/login
-- Default username: admin
-- Default password: admin123
+Admin login URL: `/admin/login`.
+
+Supabase email/password → trusted admin membership check → TOTP MFA → confirmed AAL2 → protected Admin Dashboard.
+
+Admin access requires both trusted admin membership and a Supabase session at AAL2. A password-authenticated session alone cannot access the dashboard. Authenticator enrollment must be verified before access is granted; returning users complete an authenticator challenge. Logout uses Supabase Auth.
 
 ## Notes
 
-- Authentication is currently frontend-only using browser storage for development and testing.
-- A real backend, database, and production auth provider should be added later for production use.
+- Supabase provides authentication, MFA, database access, and media storage.
+- Matches, streams, and banners allow public reads; database RLS requires an authenticated admin with AAL2 for inserts, updates, and deletes.
+- Website settings and viewer tracking remain browser-local features, separate from admin authentication.
